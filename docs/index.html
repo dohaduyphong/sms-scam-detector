@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Scam SMS Detector</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Kiểm tra tin nhắn lừa đảo</h1>
+      <p class="subtitle">Dán nội dung SMS bên dưới để kiểm tra độ tin cậy scam</p>
+    </header>
+
+    <main>
+      <div class="input-section">
+        <textarea
+          id="message-input"
+          rows="5"
+          placeholder="Ví dụ: Chuc mung ban trung thuong 5.000.000d, lien he STK 0123456789012 de nhan thuong truoc 20/09/2026"
+        ></textarea>
+        <button id="check-btn">Kiểm tra</button>
+      </div>
+
+      <div id="error-box" class="error-box hidden"></div>
+
+      <div id="loading" class="loading hidden">
+        <div class="spinner"></div>
+        <span>Đang phân tích...</span>
+      </div>
+
+      <div id="results" class="results hidden">
+        <h2>Kết quả từng mô hình</h2>
+        <div id="model-results" class="model-results"></div>
+
+        <div class="overall">
+          <h2>Độ tin cậy tổng thể</h2>
+          <div class="overall-bar-wrapper">
+            <div id="overall-bar" class="overall-bar"></div>
+          </div>
+          <div class="overall-numbers">
+            <span id="overall-percent">0%</span>
+            <span id="overall-label" class="label-badge"></span>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
