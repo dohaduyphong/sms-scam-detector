@@ -77,7 +77,7 @@ class ScamSMSDetector:
         self.phobert_model = AutoModelForSequenceClassification.from_pretrained(
             phobert_source,
             torch_dtype=torch.float32,
-            low_cpu_mem_usage=True
+            # low_cpu_mem_usage=True
         ).to(self.device)
         self.phobert_model.eval()
 
