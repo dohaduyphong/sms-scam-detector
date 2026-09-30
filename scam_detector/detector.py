@@ -51,7 +51,6 @@ class ScamSMSDetector:
         phobert_source: Union[str, Path] = PHOBERT_SOURCE,
     ):
         model_dir = Path(model_dir)
-        phobert_dir = Path(phobert_dir)
         """
         self.word_vectorizer = joblib.load(model_dir / "word_tfidf_vectorizer.joblib")
         self.logreg_model = joblib.load(model_dir / "logreg_model.joblib")
@@ -66,7 +65,6 @@ class ScamSMSDetector:
         self.svm_model = joblib.load(model_dir / "svm_model_full.joblib")
 
 
-        # Don't assume sklearn's predict_proba column order
         self.logreg_scam_index = list(self.logreg_model.classes_).index(1)
         self.svm_scam_index = list(self.svm_model.classes_).index(1)
 
