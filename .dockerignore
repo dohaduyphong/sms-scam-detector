@@ -1,0 +1,11 @@
+.git
+.gitignore
+__pycache__
+*.pyc
+.venv
+venv
+.env
+.DS_Store
+
+docs/
+models/phobert_full/

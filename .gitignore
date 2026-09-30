@@ -5,3 +5,10 @@ venv/
 .env
 .DS_Store
 .vscode/
+
+models/word_tfidf_vectorizer.joblib
+models/svm_model.joblib
+models/logreg_model.joblib
+models/char_tfidf_vectorizer.joblib
+models/phobert/
+models/phobert_full/
