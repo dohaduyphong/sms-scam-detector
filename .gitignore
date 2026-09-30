@@ -12,3 +12,6 @@ models/logreg_model.joblib
 models/char_tfidf_vectorizer.joblib
 models/phobert/
 models/phobert_full/
+
+Dockerfile
+.dockerignore

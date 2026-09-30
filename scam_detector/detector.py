@@ -11,6 +11,7 @@ from typing import Dict, Union
 import joblib
 
 import torch
+torch.set_num_threads(2)
 import torch.nn.functional as F
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
@@ -74,7 +75,9 @@ class ScamSMSDetector:
             phobert_source, use_fast=False
         )
         self.phobert_model = AutoModelForSequenceClassification.from_pretrained(
-            phobert_source
+            phobert_source,
+            torch_dtype=torch.float32,
+            low_cpu_mem_usage=True
         ).to(self.device)
         self.phobert_model.eval()
 
@@ -91,6 +94,7 @@ class ScamSMSDetector:
                 max_length=PHOBERT_MAX_LEN,
                 return_tensors="pt",
             ).to(self.device)
+        with torch.inference_mode():    
             logits = self.phobert_model(**enc).logits
             probs = F.softmax(logits, dim=1)
         return float(probs[0, self.phobert_scam_index])
@@ -107,10 +111,6 @@ class ScamSMSDetector:
         # tiền xử lý
         clean_text = prepare_text(raw_text)
         phobert_text = prepare_text_phobert(raw_text)
-
-        # check tiền xử lý
-        print(clean_text)
-        print(phobert_text)
 
         # Logistic Regression
         proba_logreg = float(
