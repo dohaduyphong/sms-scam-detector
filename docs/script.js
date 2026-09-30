@@ -4,7 +4,7 @@
 // - Production (GitHub Pages): use your deployed backend's HTTPS URL.
 //   Must be HTTPS -- browsers block plain-HTTP fetches from HTTPS pages.
 // ============================================================
-const API_BASE_URL = "http://localhost:8000";
+const API_BASE_URL = "https://simpson-realized-royalty-texas.trycloudflare.com";
 const PREDICT_ENDPOINT = `${API_BASE_URL}/predict`;
 
 // Display-only mirror of scam_detector/config.py -- keep in sync.
