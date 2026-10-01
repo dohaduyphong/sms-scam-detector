@@ -35,7 +35,7 @@ const MODELS = [
 const HIGH_RISK = 70;
 const MID_RISK = 40;
 
-const SAMPLE = "Chúng tôi đã phát hiện giao dịch bất thường trong tài khoản ngân hàng ACB của bạn, vui lòng truy cập acbbbank.com để xác minh.";
+const SAMPLE = "Ngan hang MB BANK thong bao: Tai khoan cua ban vua phat sinh giao dich 8.500.000d. Neu khong phai ban, vui long truy cap rnbbank.support.com de kiem tra va huy giao dich.";
 
 // ---------- helpers ----------
 const $ = (id) => document.getElementById(id);
