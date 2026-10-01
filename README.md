@@ -100,16 +100,16 @@ The final confidence is calculated using a weighted combination:
 
 ```text
 P(scam) =
-    0.04 × P(Logistic Regression)
-  + 0.62 × P(SVM)
-  + 0.34 × P(PhoBERT)
+    0.10 × P(Logistic Regression)
+  + 0.75 × P(SVM)
+  + 0.15 × P(PhoBERT)
 ```
 
 The current weights are defined in `scam_detector/config.py`.
 
-The resulting score is compared against a scam threshold of `0.40`.
+The resulting score is compared against a scam threshold of `0.70`.
 
-The system also contains an **override mechanism**. If any individual model produces a scam probability of at least `0.95`, the message is classified as scam regardless of the ensemble score.
+The system also contains an **override mechanism**. If any individual model produces a scam probability of at least `0.75`, the message is classified as scam regardless of the ensemble score.
 
 This prevents a highly confident prediction from being completely canceled out by the other models.
 
