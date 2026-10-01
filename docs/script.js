@@ -8,25 +8,25 @@ const API_BASE_URL = "https://clan-slip-linked-trader.trycloudflare.com";
 const PREDICT_ENDPOINT = `${API_BASE_URL}/predict`;
 
 // Display-only mirror of scam_detector/config.py -- keep in sync.
-const THRESHOLD = 0.4;
-const OVERRIDE = 0.95;
+const THRESHOLD = 0.7;
+const OVERRIDE = 0.97;
 const MODELS = [
   {
     key: "proba_word_tfidf_logreg",
     name: "Word TF-IDF + Logistic Regression",
-    weight: 0.04,
+    weight: 0.1,
     desc: "Đặc trưng theo từ và cụm 2 từ. Không đóng góp nhiều vào điểm tổng hợp, nhưng vẫn tham gia luật override.",
   },
   {
     key: "proba_char_tfidf_svm",
     name: "Char TF-IDF + Linear SVM",
-    weight: 0.62,
+    weight: 0.75,
     desc: "N-gram ký tự 3–5, bền với lỗi chính tả và cách viết biến thể.",
   },
   {
     key: "proba_phobert",
     name: "PhoBERT-base",
-    weight: 0.34,
+    weight: 0.15,
     desc: "Mô hình ngôn ngữ tiếng Việt được fine-tune, hiểu ngữ cảnh của cả câu.",
   },
 ];
@@ -167,11 +167,9 @@ function renderResults(data) {
   overallLabel.textContent = isScam ? "Nghi ngờ scam" : "An toàn";
   overallLabel.className = `label-badge ${isScam ? "scam" : "ham"}`;
 
-  // Backend sets this when one model was >= OVERRIDE and forced "scam"
-  // even though the weighted average alone would have said otherwise.
   if (data.override_triggered) {
     overrideNote.textContent =
-      "⚠️ Một mô hình rất tự tin đây là scam nên hệ thống ưu tiên cảnh báo, dù điểm trung bình có trọng số thấp hơn ngưỡng.";
+      "⚠️ Một mô hình rất tự tin đây là scam nên hệ thống ưu tiên cảnh báo";
     show(overrideNote);
   } else {
     hide(overrideNote);

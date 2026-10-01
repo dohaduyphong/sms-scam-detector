@@ -14,9 +14,9 @@ PHOBERT_SOURCE = os.environ.get(
 )
 # Weight của từng model
 MODEL_WEIGHTS = {
-    "word_tfidf_logreg": 0.04,
-    "char_tfidf_svm": 0.62,
-    "phobert": 0.34,
+    "word_tfidf_logreg": 0.1,
+    "char_tfidf_svm": 0.75,
+    "phobert": 0.15,
 }
 
 # Scam threshold tổng thể
@@ -24,7 +24,7 @@ SCAM_THRESHOLD = 0.4
 
 # Giá trị ngưỡng scam
 # Nếu có 1 mô hình có confidence score > OVERRIDE_THRESHOLD, bỏ qua các mô hình khác và mặc định SMS đó là scam
-OVERRIDE_THRESHOLD = 0.95
+OVERRIDE_THRESHOLD = 0.97
 
 # setting inference PhoBERT
 PHOBERT_MAX_LEN = 64
