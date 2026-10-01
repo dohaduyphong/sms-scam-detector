@@ -14,9 +14,7 @@ app = FastAPI(title="Scam SMS Detector API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://dohaduyphong.github.io"
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["POST", "GET"],
     allow_headers=["*"],
