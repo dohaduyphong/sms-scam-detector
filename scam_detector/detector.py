@@ -111,6 +111,7 @@ class ScamSMSDetector:
         # tiền xử lý
         clean_text = prepare_text(raw_text)
         phobert_text = prepare_text_phobert(raw_text)
+        print(raw_text)
 
         # Logistic Regression
         proba_logreg = float(
