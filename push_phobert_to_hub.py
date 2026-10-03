@@ -2,20 +2,19 @@
 One-time script: push the fine-tuned PhoBERT model (weights, tokenizer,
 label_mapping.json) to its own Hugging Face Model repo.
 
-Run this from a machine that has the real
-models/phobert_scam_sms/ folder (from phobert_scam_sms.ipynb's save
-step) -- NOT from the Space itself.
+Run this from a machine that has the trained models/phobert_full/
+folder -- not from the production server.
 
 Usage:
     pip install huggingface_hub
     huggingface-cli login              # one-time auth, needs a write token
     python3 push_phobert_to_hub.py yourname/scam-sms-phobert
 
-Why a separate Model repo instead of committing into the Space: a
-Space's own git repo is capped at 1GB, too tight for PhoBERT (~500MB+)
-alongside everything else. Model repos have no such cap. The Space
-downloads this repo at container startup via PHOBERT_SOURCE
-(see scam_detector/config.py) instead of shipping it in its own image.
+Why a separate Model repo: PhoBERT (~500MB+) is too large for the
+GitHub repo (models/phobert_full/ is gitignored). The production server
+downloads it from this repo at startup via PHOBERT_SOURCE (see
+scam_detector/config.py, deploy/sms-scam-detector.service.example and
+DEPLOY.md). Production uses dohaduyphong/phobert-scam-sms-vn.
 """
 import sys
 from pathlib import Path
@@ -54,8 +53,8 @@ def main():
         repo_type="model",
     )
 
-    print("\nDone. Set this on your Space (Settings -> Variables and secrets):")
-    print(f"  PHOBERT_SOURCE = {repo_id}")
+    print("\nDone. On the server, set in the systemd unit and restart:")
+    print(f"  Environment=PHOBERT_SOURCE={repo_id}")
 
 
 if __name__ == "__main__":

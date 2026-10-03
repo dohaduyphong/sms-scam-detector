@@ -155,10 +155,15 @@ sms-scam-detector/
 │   ├── detector.py
 │   └── preprocessing.py
 │
+├── deploy/
+│   ├── sms-scam-detector.service.example
+│   ├── nginx-api.duyphong.info.conf.example
+│   └── update.sh
+│
 ├── api.py
 ├── main.py
-├── Dockerfile
 ├── requirements.txt
+├── DEPLOY.md
 └── push_phobert_to_hub.py
 ```
 
@@ -281,6 +286,6 @@ Scam / Ham
 * Joblib
 * PyVi
 * HTML / CSS / JavaScript
-* Docker
+* systemd / Nginx
 
 The required Python packages and versions are defined in `requirements.txt`.
