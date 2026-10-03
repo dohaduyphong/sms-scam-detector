@@ -13,5 +13,24 @@ models/char_tfidf_vectorizer.joblib
 models/phobert/
 models/phobert_full/
 
-Dockerfile
-.dockerignore
+# Python caches / tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.cache/
+
+# Secrets (keep only the example file)
+.env.*
+!.env.example
+
+# Logs / runtime
+*.log
+logs/
+*.pid
+
+# IDE / OS temporary files
+.idea/
+*.swp
+*~
+Thumbs.db

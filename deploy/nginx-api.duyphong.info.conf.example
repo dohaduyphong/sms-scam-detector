@@ -1,0 +1,27 @@
+# Reference only -- reverse proxy for https://api.duyphong.info -> Uvicorn.
+#
+# xCloud manages this site's nginx config and SSL certificate. Do NOT
+# overwrite xCloud's files with this one; copy only the `location /`
+# block into the site's custom nginx config in xCloud if needed.
+# On a plain Ubuntu server without xCloud, this server block can be used
+# as-is and SSL added separately (e.g. certbot --nginx).
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name api.duyphong.info;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # SMS payloads are small (api.py caps messages at 2000 chars).
+        client_max_body_size 16k;
+        # First request after a restart can be slow while models load.
+        proxy_read_timeout 60s;
+    }
+}

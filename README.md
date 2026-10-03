@@ -107,9 +107,9 @@ P(scam) =
 
 The current weights are defined in `scam_detector/config.py`.
 
-The resulting score is compared against a scam threshold of `0.70`.
+The resulting score is compared against a scam threshold of `0.40`.
 
-The system also contains an **override mechanism**. If any individual model produces a scam probability of at least `0.75`, the message is classified as scam regardless of the ensemble score.
+The system also contains an **override mechanism**. If any individual model produces a scam probability of at least `0.97`, the message is classified as scam regardless of the ensemble score.
 
 This prevents a highly confident prediction from being completely canceled out by the other models.
 
@@ -239,13 +239,13 @@ cd docs
 python3 -m http.server 5500
 ```
 
-while the FastAPI backend runs separately on port `8000`.
+while the FastAPI backend runs separately on port `8000`. When the page is served from `localhost`/`127.0.0.1`, `docs/script.js` calls `http://<same host>:8000`; on GitHub Pages it calls `https://api.duyphong.info`.
 
 ## Deployment
 
-The repository includes a `Dockerfile` configured for container-based deployment.
+Production runs without Docker: the API is served by Uvicorn from a Python virtualenv under systemd on an Ubuntu VPS (xCloud), behind Nginx at `https://api.duyphong.info`. The frontend stays on GitHub Pages.
 
-The container uses Python 3.11 and starts the FastAPI application on port `7860`, making it suitable for platforms that expect a Docker-based web service on that port.
+See [DEPLOY.md](DEPLOY.md) for setup, model requirements (PhoBERT is not in git), and the update workflow. Templates are in `deploy/`.
 
 The project can therefore be structured as:
 

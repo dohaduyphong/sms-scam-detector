@@ -28,3 +28,14 @@ OVERRIDE_THRESHOLD = 0.97
 
 # setting inference PhoBERT
 PHOBERT_MAX_LEN = 64
+
+# Origin được phép gọi API từ trình duyệt (CORS)
+# - GitHub Pages của repo (frontend production)
+# - localhost: docs/ chạy local bằng `python3 -m http.server 5500` hoặc Live Server (5501)
+CORS_ORIGINS = [
+    "https://dohaduyphong.github.io",
+    "http://localhost:5500",
+    "http://127.0.0.1:5500",
+    "http://localhost:5501",
+    "http://127.0.0.1:5501",
+]

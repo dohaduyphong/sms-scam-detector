@@ -1,14 +1,20 @@
 // ============================================================
 // Config
-// - Local dev: keep "http://localhost:8000" (run api.py locally).
-// - Production (GitHub Pages): use your deployed backend's HTTPS URL.
-//   Must be HTTPS -- browsers block plain-HTTP fetches from HTTPS pages.
+// API_BASE_URL is chosen from where this page is served:
+// - Production (GitHub Pages): https://api.duyphong.info
+// - Local dev (docs/ on localhost / 127.0.0.1, e.g. `python3 -m http.server 5500`):
+//   the backend on port 8000 of the same host (`uvicorn api:app --port 8000`).
 // ============================================================
-const API_BASE_URL = "https://scores-bibliographic-letter-care.trycloudflare.com";
+const PRODUCTION_API_BASE_URL = "https://api.duyphong.info";
+const LOCAL_API_PORT = 8000;
+const IS_LOCAL = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+const API_BASE_URL = IS_LOCAL
+  ? `http://${window.location.hostname}:${LOCAL_API_PORT}`
+  : PRODUCTION_API_BASE_URL;
 const PREDICT_ENDPOINT = `${API_BASE_URL}/predict`;
 
 // Display-only mirror of scam_detector/config.py -- keep in sync.
-const THRESHOLD = 0.7;
+const THRESHOLD = 0.4;
 const OVERRIDE = 0.97;
 const MODELS = [
   {
