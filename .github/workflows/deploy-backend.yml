@@ -4,6 +4,15 @@ on:
   push:
     branches:
       - main
+    # Only backend changes restart the API; docs/ (GitHub Pages), README.md,
+    # DEPLOY.md etc. don't. Use workflow_dispatch to deploy manually anyway.
+    paths:
+      - api.py
+      - scam_detector/**
+      - requirements.txt
+      - models/**
+      - deploy/**
+      - .github/workflows/deploy-backend.yml
   workflow_dispatch:
 
 permissions:
