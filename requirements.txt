@@ -3,6 +3,6 @@ scikit-learn==1.6.1
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
 torch>=2.9.0
-transformers==4.47.1
-huggingface_hub==0.27.0
-pyvi==0.1.1
+transformers==5.17.0
+huggingface_hub==1.33.0
+numpy

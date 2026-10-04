@@ -30,6 +30,7 @@ Environment=PYTHONUNBUFFERED=1
 # PhoBERT (not in git) comes from its public Hugging Face repo -- no token needed.
 # First start downloads ~540MB into HF_HOME (default ~/.cache/huggingface), then
 # reuses the cache. Remove this line to use <APP_DIR>/models/phobert_full/ instead.
+
 Environment=PHOBERT_SOURCE=dohaduyphong/phobert-scam-sms-vn
 #Environment=HF_HOME=<APP_DIR>/.cache/huggingface
 

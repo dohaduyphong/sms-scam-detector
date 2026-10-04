@@ -53,10 +53,11 @@ if [ "$SYSTEMD_SCOPE" = user ] && ! systemctl --user cat "$SERVICE_NAME" >/dev/n
     die "User unit '$SERVICE_NAME' not found (XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR). See DEPLOY.md section 4."
 fi
 
-if [ "$SYSTEMD_SCOPE" = user ] && [ ! -d models/phobert_full ] &&
-    ! systemctl --user cat "$SERVICE_NAME" 2>/dev/null | grep -q '^Environment=PHOBERT_SOURCE='; then
-    log "WARNING: neither models/phobert_full/ nor PHOBERT_SOURCE in the unit -- PhoBERT"
-    log "         will fail to load (see deploy/sms-scam-detector.service.example)."
+if [ "$SYSTEMD_SCOPE" = user ] && [ ! -d models/visobert_full ] &&
+    ! systemctl --user cat "$SERVICE_NAME" 2>/dev/null | grep -q '^Environment=VISOBERT_SOURCE='; then
+    log "WARNING: neither models/visobert_full/ nor VISOBERT_SOURCE in the unit -- ViSoBERT"
+    log "         will fail to load. Copy it first, e.g. from your machine:"
+    log "         rsync -avz models/visobert_full/ <user>@<host>:$APP_DIR/models/visobert_full/"
 fi
 
 if ! git diff --quiet || ! git diff --cached --quiet; then

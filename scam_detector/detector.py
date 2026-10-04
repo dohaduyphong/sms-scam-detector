@@ -2,28 +2,31 @@
 Phần cốt lõi phát hiện scam
 - Load các model
 - Chạy các model trên SMS
-- Gộp kết quả các model thành kết quả cuối cùng
+- Gộp kết quả các model thành kết quả cuối cùng (stack_lr, Ensemble_v2.ipynb)
 """
 import json
+import math
 from pathlib import Path
 from typing import Dict, Union
 
 import joblib
+import numpy as np
 
 import torch
 torch.set_num_threads(2)
-import torch.nn.functional as F
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 from .config import (
+    ENSEMBLE_COEF,
+    ENSEMBLE_INTERCEPT,
+    ENSEMBLE_SCALER_MEAN,
+    ENSEMBLE_SCALER_SCALE,
+    ENSEMBLE_THRESHOLD,
     MODEL_DIR,
-    MODEL_WEIGHTS,
-    OVERRIDE_THRESHOLD,
-    PHOBERT_SOURCE,
-    PHOBERT_MAX_LEN,
-    SCAM_THRESHOLD,
+    VISOBERT_MAX_LEN,
+    VISOBERT_SOURCE,
 )
-from .preprocessing import prepare_text, prepare_text_phobert
+from .preprocessing import prepare_text, prepare_text_visobert
 
 def _load_label_mapping(source: str) -> dict:
     """
@@ -45,113 +48,111 @@ def _load_label_mapping(source: str) -> dict:
         return json.load(f)
 
 
+def _logit(p: float, eps: float = 1e-6) -> float:
+    p = min(max(p, eps), 1 - eps)
+    return math.log(p / (1 - p))
+
+
+def _sigmoid(x: float) -> float:
+    return 1.0 / (1.0 + math.exp(-x))
+
+
 class ScamSMSDetector:
     def __init__(
         self,
         model_dir: Union[str, Path] = MODEL_DIR,
-        phobert_source: Union[str, Path] = PHOBERT_SOURCE,
+        visobert_source: Union[str, Path] = VISOBERT_SOURCE,
     ):
         model_dir = Path(model_dir)
-        """
-        self.word_vectorizer = joblib.load(model_dir / "word_tfidf_vectorizer.joblib")
-        self.logreg_model = joblib.load(model_dir / "logreg_model.joblib")
+        visobert_source = str(visobert_source)
 
-        self.char_vectorizer = joblib.load(model_dir / "char_tfidf_vectorizer.joblib")
-        self.svm_model = joblib.load(model_dir / "svm_model.joblib")
-        """
         self.word_vectorizer = joblib.load(model_dir / "word_tfidf_vectorizer_full.joblib")
         self.logreg_model = joblib.load(model_dir / "logreg_model_full.joblib")
-        
+
         self.char_vectorizer = joblib.load(model_dir / "char_tfidf_vectorizer_full.joblib")
         self.svm_model = joblib.load(model_dir / "svm_model_full.joblib")
 
+        # decision_function / predict_proba[:, 1] giả định lớp scam (1) là lớp dương
+        assert list(self.logreg_model.classes_) == [0, 1]
+        assert list(self.svm_model.classes_) == [0, 1]
 
-        self.logreg_scam_index = list(self.logreg_model.classes_).index(1)
-        self.svm_scam_index = list(self.svm_model.classes_).index(1)
-
-        # PhoBERT -- load 1 lần từ đầu thay vì sau mỗi request
+        # ViSoBERT -- load 1 lần từ đầu thay vì sau mỗi request
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.phobert_tokenizer = AutoTokenizer.from_pretrained(
-            phobert_source, use_fast=False
-        )
-        self.phobert_model = AutoModelForSequenceClassification.from_pretrained(
-            phobert_source,
-            torch_dtype=torch.float32,
-            # low_cpu_mem_usage=True
+        self.visobert_tokenizer = AutoTokenizer.from_pretrained(visobert_source)
+        self.visobert_model = AutoModelForSequenceClassification.from_pretrained(
+            visobert_source,
+            dtype=torch.float32,
         ).to(self.device)
-        self.phobert_model.eval()
+        self.visobert_model.eval()
 
-        label_map = _load_label_mapping(phobert_source)
+        label_map = _load_label_mapping(visobert_source)
         # index of the class whose original label value is 1 ("scam")
-        self.phobert_scam_index = [int(k) for k, v in label_map.items() if v == 1][0]
+        self.visobert_scam_index = int(next(k for k, v in label_map.items() if int(v) == 1))
+        self.visobert_ham_index = 1 - self.visobert_scam_index
 
-    def _predict_phobert_proba(self, segmented_text: str) -> float:
-        with torch.no_grad():
-            enc = self.phobert_tokenizer(
-                segmented_text,
-                padding=True,
-                truncation=True,
-                max_length=PHOBERT_MAX_LEN,
-                return_tensors="pt",
-            ).to(self.device)
-        with torch.inference_mode():    
-            logits = self.phobert_model(**enc).logits
-            probs = F.softmax(logits, dim=1)
-        return float(probs[0, self.phobert_scam_index])
+        self.ens_mean = np.array(ENSEMBLE_SCALER_MEAN)
+        self.ens_scale = np.array(ENSEMBLE_SCALER_SCALE)
+        self.ens_coef = np.array(ENSEMBLE_COEF)
+
+    def _score_visobert(self, text: str) -> float:
+        # logits[scam] - logits[ham]
+        enc = self.visobert_tokenizer(
+            text,
+            truncation=True,
+            max_length=VISOBERT_MAX_LEN,
+            return_tensors="pt",
+        ).to(self.device)
+        with torch.inference_mode():
+            logits = self.visobert_model(**enc).logits[0].float()
+        return float(logits[self.visobert_scam_index] - logits[self.visobert_ham_index])
 
     def predict(self, raw_text: str) -> Dict:
         """
-        Chạy cả 3 model trên 1 tin nhắn sms sau đó kết hợp
-        kết quả của chúng thành 1 chỉ số tự tin duy nhất.
-        Kết hợp với safety override trong trường hợp 1 mô hình rất tự tin
-        nhưng bị outvote bởi các mô hình khác
-        - Chỉnh threshold trong config.py
+        Chạy cả 3 model trên 1 tin nhắn sms rồi gộp điểm thô của chúng
+        bằng stacking logistic regression (stack_lr) trên z-score:
+            score = intercept + sum_i coef[i] * (s_i - mean[i]) / scale[i]
+        scam nếu score >= ENSEMBLE_THRESHOLD
+        - Tham số lấy từ Ensemble_v2.ipynb, chỉnh trong config.py
         """
 
         # tiền xử lý
         clean_text = prepare_text(raw_text)
-        phobert_text = prepare_text_phobert(raw_text)
+        visobert_text = prepare_text_visobert(raw_text)
 
-        # Logistic Regression
-        proba_logreg = float(
-            self.logreg_model.predict_proba(
+        # Logistic Regression: log-odds
+        score_logreg = float(
+            self.logreg_model.decision_function(
                 self.word_vectorizer.transform([clean_text])
-            )[0, self.logreg_scam_index]
+            )[0]
         )
 
-        # SVM
-        proba_svm = float(
+        # SVM (CalibratedClassifierCV): logit của xác suất scam
+        score_svm = _logit(float(
             self.svm_model.predict_proba(
                 self.char_vectorizer.transform([clean_text])
-            )[0, self.svm_scam_index]
-        )
+            )[0, 1]
+        ))
 
-        # PhoBERT
-        proba_phobert = self._predict_phobert_proba(phobert_text)
+        # ViSoBERT
+        score_visobert = self._score_visobert(visobert_text)
 
         # Kết hợp 3 kết quả
-        combined = (
-            proba_logreg * MODEL_WEIGHTS["word_tfidf_logreg"]
-            + proba_svm * MODEL_WEIGHTS["char_tfidf_svm"]
-            + proba_phobert * MODEL_WEIGHTS["phobert"]
-        )
-
-        # Override
-        override_triggered = (
-            proba_logreg >= OVERRIDE_THRESHOLD
-            or proba_svm >= OVERRIDE_THRESHOLD
-            or proba_phobert >= OVERRIDE_THRESHOLD
-        )
-        is_scam = (combined >= SCAM_THRESHOLD) or override_triggered
+        scores = np.array([score_logreg, score_svm, score_visobert])
+        z = (scores - self.ens_mean) / self.ens_scale
+        ensemble_score = float(ENSEMBLE_INTERCEPT + z @ self.ens_coef)
+        is_scam = ensemble_score >= ENSEMBLE_THRESHOLD
 
         # return một dictionary các kết quả
+        # proba_* : xác suất scam của từng model (sigmoid của điểm thô)
+        # confidence_scam : xác suất của bộ stack_lr; threshold cùng thang
         return {
             "text": raw_text,
             "clean_text": clean_text,
-            "proba_word_tfidf_logreg": float(proba_logreg),
-            "proba_char_tfidf_svm": float(proba_svm),
-            "proba_phobert": float(proba_phobert),
-            "confidence_scam": float(combined),
-            "override_triggered": override_triggered,
+            "proba_word_tfidf_logreg": _sigmoid(score_logreg),
+            "proba_char_tfidf_svm": _sigmoid(score_svm),
+            "proba_visobert": _sigmoid(score_visobert),
+            "ensemble_score": ensemble_score,
+            "confidence_scam": _sigmoid(ensemble_score),
+            "threshold": _sigmoid(ENSEMBLE_THRESHOLD),
             "label": "scam" if is_scam else "ham",
         }

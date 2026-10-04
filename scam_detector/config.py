@@ -1,33 +1,35 @@
 """
 Config
-Điều chỉnh weight của từng model, threshold
+Đường dẫn model, tham số bộ ghép (ensemble) và threshold
 """
 import os
 from pathlib import Path
 
-#   word_tfidf_vectorizer.joblib, logreg_model.joblib,
-#   char_tfidf_vectorizer.joblib, svm_model.joblib
+#   word_tfidf_vectorizer_full.joblib, logreg_model_full.joblib,
+#   char_tfidf_vectorizer_full.joblib, svm_model_full.joblib
 MODEL_DIR = Path(__file__).resolve().parent.parent / "models"
-# PHOBERT_DIR = MODEL_DIR / "phobert"
-PHOBERT_SOURCE = os.environ.get(
-    "PHOBERT_SOURCE", str(MODEL_DIR / "phobert_full")
+# Thư mục local hoặc HF Hub repo id của ViSoBERT đã fine-tune
+VISOBERT_SOURCE = os.environ.get(
+    "VISOBERT_SOURCE", str(MODEL_DIR / "visobert_full")
 )
-# Weight của từng model
-MODEL_WEIGHTS = {
-    "word_tfidf_logreg": 0.1,
-    "char_tfidf_svm": 0.75,
-    "phobert": 0.15,
-}
 
-# Scam threshold tổng thể
-SCAM_THRESHOLD = 0.4
+# setting inference ViSoBERT (giống lúc train / Ensemble_v2.ipynb)
+VISOBERT_MAX_LEN = 256
 
-# Giá trị ngưỡng scam
-# Nếu có 1 mô hình có confidence score > OVERRIDE_THRESHOLD, bỏ qua các mô hình khác và mặc định SMS đó là scam
-OVERRIDE_THRESHOLD = 0.97
-
-# setting inference PhoBERT
-PHOBERT_MAX_LEN = 64
+# Bộ ghép stack_lr (Ensemble_v2.ipynb, outputs/ensemble_v2_config.json)
+# Điểm thô s_i của từng model, theo thứ tự ENSEMBLE_MODELS:
+#   word_lr    : logreg.decision_function(...)
+#   char_svm   : logit(svm.predict_proba(...)[:, 1]), clip 1e-6
+#   visobert   : logits[scam] - logits[ham]
+# score = intercept + sum_i coef[i] * (s_i - scaler_mean[i]) / scaler_scale[i]
+# scam nếu score >= ENSEMBLE_THRESHOLD
+# Fit trên test_clean (522 tin, 109 scam), chính sách min_recall (recall >= 0.9)
+ENSEMBLE_MODELS = ["word_lr", "char_svm", "visobert"]
+ENSEMBLE_SCALER_MEAN = [-0.6854384490041919, -2.6533970678957357, -4.185691451404058]
+ENSEMBLE_SCALER_SCALE = [1.6512267164198766, 3.8183008000240752, 5.880472176027398]
+ENSEMBLE_COEF = [0.7341687086117116, 1.9483087939165036, 0.7795957699222847]
+ENSEMBLE_INTERCEPT = -2.158993285248134
+ENSEMBLE_THRESHOLD = 0.6844216153738869
 
 # Origin được phép gọi API từ trình duyệt (CORS)
 # - GitHub Pages của repo (frontend production)

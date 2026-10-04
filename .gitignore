@@ -12,6 +12,9 @@ models/logreg_model.joblib
 models/char_tfidf_vectorizer.joblib
 models/phobert/
 models/phobert_full/
+models/visobert_full/
+
+Ensemble_v2(1).ipynb
 
 # Python caches / tooling
 .pytest_cache/

@@ -14,26 +14,26 @@ const API_BASE_URL = IS_LOCAL
 const PREDICT_ENDPOINT = `${API_BASE_URL}/predict`;
 
 // Display-only mirror of scam_detector/config.py -- keep in sync.
-const THRESHOLD = 0.4;
-const OVERRIDE = 0.97;
+// THRESHOLD = sigmoid(ENSEMBLE_THRESHOLD); weight = phần của |coef| trong ENSEMBLE_COEF.
+const THRESHOLD = 0.665;
 const MODELS = [
   {
     key: "proba_word_tfidf_logreg",
     name: "Word TF-IDF + Logistic Regression",
-    weight: 0.1,
-    desc: "Đặc trưng theo từ và cụm 2 từ. Không đóng góp nhiều vào điểm tổng hợp, nhưng vẫn tham gia luật override.",
+    weight: 0.21,
+    desc: "Đặc trưng theo từ và cụm 2 từ.",
   },
   {
     key: "proba_char_tfidf_svm",
     name: "Char TF-IDF + Linear SVM",
-    weight: 0.75,
+    weight: 0.56,
     desc: "N-gram ký tự 3–5, bền với lỗi chính tả và cách viết biến thể.",
   },
   {
-    key: "proba_phobert",
-    name: "PhoBERT-base",
-    weight: 0.15,
-    desc: "Mô hình ngôn ngữ tiếng Việt được fine-tune, hiểu ngữ cảnh của cả câu.",
+    key: "proba_visobert",
+    name: "ViSoBERT",
+    weight: 0.23,
+    desc: "Mô hình ngôn ngữ tiếng Việt mạng xã hội được fine-tune, hiểu ngữ cảnh của cả câu.",
   },
 ];
 
@@ -73,10 +73,9 @@ const modelResults = $("model-results");
 const overallBar = $("overall-bar");
 const overallPercent = $("overall-percent");
 const overallLabel = $("overall-label");
-const overrideNote = $("override-note");
 
 // ---------- static content ----------
-$("meta").textContent = `MODELS ${MODELS.length} · THRESHOLD ${pct(THRESHOLD)} · OVERRIDE ${pct(OVERRIDE)}`;
+$("meta").textContent = `MODELS ${MODELS.length} · THRESHOLD ${pct(THRESHOLD)}`;
 
 MODELS.forEach((m, i) => {
   const card = el("article", "card model-card");
@@ -90,8 +89,8 @@ MODELS.forEach((m, i) => {
 });
 
 $("rules-note").textContent =
-  `Điểm tổng hợp là trung bình có trọng số của các xác suất; từ ${pct(THRESHOLD)} trở lên là scam. ` +
-  `Luật override: nếu bất kỳ mô hình nào đạt từ ${pct(OVERRIDE)}, tin nhắn được gắn nhãn scam bất kể điểm trung bình.`;
+  `Điểm tổng hợp do một mô hình logistic regression (stacking) tính từ điểm chuẩn hoá của 3 mô hình; ` +
+  `từ ${pct(THRESHOLD)} trở lên là scam.`;
 
 // ---------- events ----------
 document.querySelectorAll(".tab").forEach((tab) => {
@@ -162,24 +161,13 @@ function renderResults(data) {
 
   const overall = data.confidence_scam * 100;
   overallBar.style.width = `${overall}%`;
-  if(!data.override_triggered) overallBar.style.background = colorForPercent(overall);
-  else overallBar.style.background = "#f87171";
+  overallBar.style.background = colorForPercent(overall);
   overallPercent.textContent = `${overall.toFixed(1)}%`;
-  if(!data.override_triggered) overallPercent.style.color = colorForPercent(overall);
-  else overallPercent.style.color = "#f87171";
-
+  overallPercent.style.color = colorForPercent(overall);
 
   const isScam = data.label === "scam";
   overallLabel.textContent = isScam ? "Nghi ngờ scam" : "An toàn";
   overallLabel.className = `label-badge ${isScam ? "scam" : "ham"}`;
-
-  if (data.override_triggered) {
-    overrideNote.textContent =
-      "⚠️ Một mô hình rất tự tin đây là scam nên hệ thống ưu tiên cảnh báo";
-    show(overrideNote);
-  } else {
-    hide(overrideNote);
-  }
 
   show(results);
 }
