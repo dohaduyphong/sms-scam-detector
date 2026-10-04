@@ -13,6 +13,7 @@ models/char_tfidf_vectorizer.joblib
 models/phobert/
 models/phobert_full/
 models/visobert_full/
+datasets/
 
 Ensemble_v2(1).ipynb
 
