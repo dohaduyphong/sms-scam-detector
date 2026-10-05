@@ -38,8 +38,8 @@ const MODELS = [
 ];
 
 // Risk colours for a percentage: >= HIGH red, >= MID amber, else green.
-const HIGH_RISK = 68.44;
-const MID_RISK = 40;
+const HIGH_RISK = 60;
+const MID_RISK = THRESHOLD;
 
 const SAMPLE = "Ngan hang MB BANK thong bao: Tai khoan cua ban vua phat sinh giao dich 8.500.000d. Neu khong phai ban, vui long truy cap rnbbank.support.com de kiem tra va huy giao dich.";
 
