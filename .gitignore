@@ -37,5 +37,4 @@ logs/
 *.swp
 *~
 Thumbs.db
-models/visobert/
 outputs/
