@@ -41,7 +41,39 @@ const MODELS = [
 const HIGH_RISK = 60;
 const MID_RISK = THRESHOLD;
 
-const SAMPLE = "Ngan hang MB BANK thong bao: Tai khoan cua ban vua phat sinh giao dich 8.500.000d. Neu khong phai ban, vui long truy cap rnbbank.support.com de kiem tra va huy giao dich.";
+// Tin mẫu cho nút "Dùng tin mẫu": trộn cả scam và hợp lệ. Số điện thoại / STK / link là giả.
+const SAMPLES = [
+  // scam
+  "Ngan hang MB BANK thong bao: Tai khoan cua ban vua phat sinh giao dich 8.500.000d. Neu khong phai ban, vui long truy cap rnbbank.support.com de kiem tra va huy giao dich.",
+  "Cuc CSGT: Phuong tien 51G-847.29 vi pham loi vuot den do qua camera. Nop phat 2.500.000d vao STK 1903847291 Kho Bac truoc 17h ngay mai de tranh bi tam giu phuong tien.",
+  "Tong cuc Thue: Ban du dieu kien nhan lai 3.250.000d thue TNCN dong thua. Vui long xac nhan thong tin tai thue-hoantien.com trong 24h.",
+  "TUYỂN CTV chốt đơn TikTok Shop tại nhà, lương 300-500k/ngày, không cần cọc. Kết bạn Telegram 0912345678 để được hướng dẫn.",
+  "Chúc mừng quý khách đã trúng thưởng iPhone 15 Pro Max từ chương trình tri ân. Truy cập qua-tang-tri-an.vn và đóng phí hồ sơ 350.000đ để nhận quà.",
+  "[MB Bank] Nhân viên CSKH sẽ gọi xác minh trong ít phút. Vui lòng đọc mã OTP 6 số vừa gửi để hoàn tất nâng cấp bảo mật Smart OTP.",
+  "Chúng tôi đã phát hiện giao dịch bất thường trong tài khoản ngân hàng ACB của bạn, vui lòng truy cập acbbbank.com để xác minh.",
+  "CONG AN TP HA NOI THONG BAO: Anh/Chi dang la doi tuong tinh nghi cho mot vu an rua tien nghiem trong. Yeu cau anh/chi hop tac, cung cap thong tin ca nhan cho co quan chuc nang qua duong link b0c0ngan.com",
+  "Anh oi em la Hung day, em moi hong dth, anh chuyen giup em 2tr vao stk nay em sua dth voi, ti em tra sau.",
+  "Ban oi minh la nv cham soc kh cua dien luc, thang nay nha ban dc ho tro giam 50% tien dien nhung phai dong phi kich hoat 150k trc. Ck vao stk 0912312312 ten Tran Thi Hoai roi gui bien lai cho minh nhe, muon thi lam nhanh ko het slot",
+  "CHUC MUNG! Ban da trung thuong 50 trieu VND tu chuong trinh khach hang may man. Goi ngay 0912341234 de nhan thuong.",
+  "Chào anh, em bên bộ phận đối soát. Bên em thấy tài khoản của anh có một khoản hoàn tiền chưa nhận. Anh cho em xin thời gian thuận tiện để em gọi xác minh.",
+
+  // hợp lệ
+  "Ma OTP cua ban la 482913. Ma co hieu luc trong 5 phut. Tuyet doi KHONG chia se ma nay voi bat ky ai, ke ca nhan vien ngan hang.",
+  "c ơi e vừa ck 2tr5 tiền hàng tháng này vào tk vietcombank của c r ạ, c check giúp e vs nha",
+  "Đơn hàng #SPX928471 của bạn đang được giao. Shipper sẽ gọi trước khi đến, vui lòng giữ điện thoại.",
+  "Mẹ ơi con về muộn chút, đừng chờ cơm con nha. Con ghé siêu thị mua ít đồ rồi về luôn.",
+];
+let lastSample = -1;
+
+function randomSample() {
+  // không lặp lại tin vừa hiện
+  let i;
+  do {
+    i = Math.floor(Math.random() * SAMPLES.length);
+  } while (SAMPLES.length > 1 && i === lastSample);
+  lastSample = i;
+  return SAMPLES[i];
+}
 
 // ---------- helpers ----------
 const $ = (id) => document.getElementById(id);
@@ -107,7 +139,7 @@ document.querySelectorAll(".tab").forEach((tab) => {
 
 checkBtn.addEventListener("click", handleCheck);
 $("sample-btn").addEventListener("click", () => {
-  messageInput.value = SAMPLE;
+  messageInput.value = randomSample();
   messageInput.focus();
 });
 messageInput.addEventListener("keydown", (e) => {
