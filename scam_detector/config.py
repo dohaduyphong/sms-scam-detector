@@ -5,12 +5,15 @@ Config
 import os
 from pathlib import Path
 
-#   word_tfidf_vectorizer_full.joblib, logreg_model_full.joblib,
-#   char_tfidf_vectorizer_full.joblib, svm_model_full.joblib
 MODEL_DIR = Path(__file__).resolve().parent.parent / "models"
-# Thư mục local hoặc HF Hub repo id của ViSoBERT đã fine-tune
+# Bộ model TF-IDF đang dùng: word_tfidf_vectorizer{MODEL_SUFFIX}.joblib, logreg_model{MODEL_SUFFIX}.joblib,
+#   char_tfidf_vectorizer{MODEL_SUFFIX}.joblib, svm_model{MODEL_SUFFIX}.joblib
+# Thư mục local hoặc HF Hub repo id của ViSoBERT đã fine-tune.
+# Mặc định: models/visobert nếu có (local), không thì tải từ HF (server chưa set biến môi trường)
+VISOBERT_HF_REPO = "dohaduyphong/visobert-scam-sms-vn"
 VISOBERT_SOURCE = os.environ.get(
-    "VISOBERT_SOURCE", str(MODEL_DIR / "visobert_full")
+    "VISOBERT_SOURCE",
+    str(MODEL_DIR / "visobert") if (MODEL_DIR / "visobert").is_dir() else VISOBERT_HF_REPO,
 )
 
 # setting inference ViSoBERT (giống lúc train / Ensemble_v2.ipynb)
@@ -23,13 +26,14 @@ VISOBERT_MAX_LEN = 256
 #   visobert   : logits[scam] - logits[ham]
 # score = intercept + sum_i coef[i] * (s_i - scaler_mean[i]) / scaler_scale[i]
 # scam nếu score >= ENSEMBLE_THRESHOLD
-# Fit trên test_clean (522 tin, 109 scam), chính sách min_recall (recall >= 0.9)
+# Fit trên test_clean (897 tin, 250 scam), chính sách min_recall (recall >= 0.93),
+# chọn theo F2 (Ensemble_v2.ipynb, chạy 05/10/2026). Cross-fitted: recall 0.932, FPR 0.071, F2 0.911
 ENSEMBLE_MODELS = ["word_lr", "char_svm", "visobert"]
-ENSEMBLE_SCALER_MEAN = [-0.6854384490041919, -2.6533970678957357, -4.185691451404058]
-ENSEMBLE_SCALER_SCALE = [1.6512267164198766, 3.8183008000240752, 5.880472176027398]
-ENSEMBLE_COEF = [0.7341687086117116, 1.9483087939165036, 0.7795957699222847]
-ENSEMBLE_INTERCEPT = -2.158993285248134
-ENSEMBLE_THRESHOLD = 0.6844216153738869
+ENSEMBLE_SCALER_MEAN = [-0.4184017196895849, -1.322913658225613, -3.28819343610485]
+ENSEMBLE_SCALER_SCALE = [1.3443312190022245, 2.5040219412959686, 7.357235295636429]
+ENSEMBLE_COEF = [2.3261505196760788, 0.8584699830698975, 1.049752457275563]
+ENSEMBLE_INTERCEPT = -1.7571297591911594
+ENSEMBLE_THRESHOLD = -0.03048477436497743
 
 # Origin được phép gọi API từ trình duyệt (CORS)
 # - GitHub Pages của repo (frontend production)

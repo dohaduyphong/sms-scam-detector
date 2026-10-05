@@ -6,16 +6,15 @@ venv/
 .DS_Store
 .vscode/
 
-models/word_tfidf_vectorizer.joblib
-models/svm_model.joblib
-models/logreg_model.joblib
-models/char_tfidf_vectorizer.joblib
 models/phobert/
 models/phobert_full/
+models/visobert/
 models/visobert_full/
 datasets/
 
 Ensemble_v2(1).ipynb
+Model_Train_PhoBERT_ViSoBERT_Final(1).ipynb
+requirements-notebook.txt
 
 # Python caches / tooling
 .pytest_cache/
@@ -38,3 +37,5 @@ logs/
 *.swp
 *~
 Thumbs.db
+models/visobert/
+outputs/

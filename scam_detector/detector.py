@@ -66,11 +66,11 @@ class ScamSMSDetector:
         model_dir = Path(model_dir)
         visobert_source = str(visobert_source)
 
-        self.word_vectorizer = joblib.load(model_dir / "word_tfidf_vectorizer_full.joblib")
-        self.logreg_model = joblib.load(model_dir / "logreg_model_full.joblib")
+        self.word_vectorizer = joblib.load(model_dir / f"word_tfidf_vectorizer.joblib")
+        self.logreg_model = joblib.load(model_dir / f"logreg_model.joblib")
 
-        self.char_vectorizer = joblib.load(model_dir / "char_tfidf_vectorizer_full.joblib")
-        self.svm_model = joblib.load(model_dir / "svm_model_full.joblib")
+        self.char_vectorizer = joblib.load(model_dir / f"char_tfidf_vectorizer.joblib")
+        self.svm_model = joblib.load(model_dir / f"svm_model.joblib")
 
         # decision_function / predict_proba[:, 1] giả định lớp scam (1) là lớp dương
         assert list(self.logreg_model.classes_) == [0, 1]

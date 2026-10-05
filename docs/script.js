@@ -15,24 +15,24 @@ const PREDICT_ENDPOINT = `${API_BASE_URL}/predict`;
 
 // Display-only mirror of scam_detector/config.py -- keep in sync.
 // THRESHOLD = sigmoid(ENSEMBLE_THRESHOLD); weight = phần của |coef| trong ENSEMBLE_COEF.
-const THRESHOLD = 0.665;
+const THRESHOLD = 0.492;
 const MODELS = [
   {
     key: "proba_word_tfidf_logreg",
     name: "Word TF-IDF + Logistic Regression",
-    weight: 0.21,
+    weight: 0.55,
     desc: "Đặc trưng theo từ và cụm 2 từ.",
   },
   {
     key: "proba_char_tfidf_svm",
     name: "Char TF-IDF + Linear SVM",
-    weight: 0.56,
+    weight: 0.2,
     desc: "N-gram ký tự 3–5, bền với lỗi chính tả và cách viết biến thể.",
   },
   {
     key: "proba_visobert",
     name: "ViSoBERT",
-    weight: 0.23,
+    weight: 0.25,
     desc: "Mô hình ngôn ngữ tiếng Việt mạng xã hội được fine-tune, hiểu ngữ cảnh của cả câu.",
   },
 ];
