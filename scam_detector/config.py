@@ -15,9 +15,19 @@ VISOBERT_SOURCE = os.environ.get(
     "VISOBERT_SOURCE",
     str(MODEL_DIR / "visobert") if (MODEL_DIR / "visobert").is_dir() else VISOBERT_HF_REPO,
 )
+# Revision (commit) cố định trên HF: tham số ensemble bên dưới chỉ đúng với đúng bản model này.
+# Không dùng "main" -> tránh server nạp nhầm bản cũ/mới (cache, upload trước/sau deploy).
+# Bỏ qua khi VISOBERT_SOURCE là thư mục local. Đổi khi upload model mới + fit lại ensemble.
+VISOBERT_REVISION = os.environ.get(
+    "VISOBERT_REVISION", "ab6b90c8bbf53914c4d8a5c76237152f08d9c120"
+)
 
 # setting inference ViSoBERT (giống lúc train / Ensemble_v2.ipynb)
 VISOBERT_MAX_LEN = 256
+# Temperature scaling CHỈ cho xác suất hiển thị (proba_visobert): ViSoBERT rất tự tin
+# (94% dự đoán <1% hoặc >99%). sigmoid(score / T) với T fit trên test_clean (log-loss 0.593 -> 0.278).
+# Không ảnh hưởng ensemble: ensemble dùng điểm thô đã chuẩn hoá z-score, chia T không đổi kết quả.
+VISOBERT_TEMPERATURE = 3.18
 
 # Bộ ghép stack_lr (Ensemble_v2.ipynb, outputs/ensemble_v2_config.json)
 # Điểm thô s_i của từng model, theo thứ tự ENSEMBLE_MODELS:

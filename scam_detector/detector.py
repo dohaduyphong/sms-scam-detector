@@ -7,7 +7,7 @@ Phần cốt lõi phát hiện scam
 import json
 import math
 from pathlib import Path
-from typing import Dict, Union
+from typing import Dict, Optional, Union
 
 import joblib
 import numpy as np
@@ -24,11 +24,13 @@ from .config import (
     ENSEMBLE_THRESHOLD,
     MODEL_DIR,
     VISOBERT_MAX_LEN,
+    VISOBERT_REVISION,
     VISOBERT_SOURCE,
+    VISOBERT_TEMPERATURE,
 )
 from .preprocessing import prepare_text, prepare_text_visobert
 
-def _load_label_mapping(source: str) -> dict:
+def _load_label_mapping(source: str, revision: Optional[str] = None) -> dict:
     """
     label_mapping.json isn't a standard transformers file, so
     from_pretrained() won't fetch it for us. Read it straight off disk
@@ -43,7 +45,7 @@ def _load_label_mapping(source: str) -> dict:
 
     from huggingface_hub import hf_hub_download
 
-    path = hf_hub_download(repo_id=source, filename="label_mapping.json")
+    path = hf_hub_download(repo_id=source, filename="label_mapping.json", revision=revision)
     with open(path, encoding="utf-8") as f:
         return json.load(f)
 
@@ -78,14 +80,17 @@ class ScamSMSDetector:
 
         # ViSoBERT -- load 1 lần từ đầu thay vì sau mỗi request
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.visobert_tokenizer = AutoTokenizer.from_pretrained(visobert_source)
+        # HF repo: nạp đúng revision cố định; thư mục local: không cần revision
+        revision = None if Path(visobert_source).is_dir() else VISOBERT_REVISION
+        self.visobert_tokenizer = AutoTokenizer.from_pretrained(visobert_source, revision=revision)
         self.visobert_model = AutoModelForSequenceClassification.from_pretrained(
             visobert_source,
+            revision=revision,
             dtype=torch.float32,
         ).to(self.device)
         self.visobert_model.eval()
 
-        label_map = _load_label_mapping(visobert_source)
+        label_map = _load_label_mapping(visobert_source, revision)
         # index of the class whose original label value is 1 ("scam")
         self.visobert_scam_index = int(next(k for k, v in label_map.items() if int(v) == 1))
         self.visobert_ham_index = 1 - self.visobert_scam_index
@@ -150,7 +155,7 @@ class ScamSMSDetector:
             "clean_text": clean_text,
             "proba_word_tfidf_logreg": _sigmoid(score_logreg),
             "proba_char_tfidf_svm": _sigmoid(score_svm),
-            "proba_visobert": _sigmoid(score_visobert),
+            "proba_visobert": _sigmoid(score_visobert / VISOBERT_TEMPERATURE),
             "ensemble_score": ensemble_score,
             "confidence_scam": _sigmoid(ensemble_score),
             "threshold": _sigmoid(ENSEMBLE_THRESHOLD),
