@@ -7,7 +7,7 @@ Phần cốt lõi phát hiện scam
 import json
 import math
 from pathlib import Path
-from typing import Dict, Optional, Union
+from typing import Callable, Dict, Optional, Union
 
 import joblib
 import numpy as np
@@ -23,12 +23,16 @@ from .config import (
     ENSEMBLE_SCALER_SCALE,
     ENSEMBLE_THRESHOLD,
     MODEL_DIR,
+    PHOBERT_MAX_LEN,
+    PHOBERT_REVISION,
+    PHOBERT_SOURCE,
+    PHOBERT_TEMPERATURE,
     VISOBERT_MAX_LEN,
     VISOBERT_REVISION,
     VISOBERT_SOURCE,
     VISOBERT_TEMPERATURE,
 )
-from .preprocessing import prepare_text, prepare_text_visobert
+from .preprocessing import prepare_text, prepare_text_phobert, prepare_text_visobert
 
 def _load_label_mapping(source: str, revision: Optional[str] = None) -> dict:
     """
@@ -59,14 +63,53 @@ def _sigmoid(x: float) -> float:
     return 1.0 / (1.0 + math.exp(-x))
 
 
+class _TransformerScorer:
+    """Transformer phân loại 2 lớp đã fine-tune, load 1 lần; điểm = logits[scam] - logits[ham]."""
+
+    def __init__(
+        self,
+        source: str,
+        revision: Optional[str],
+        max_len: int,
+        prepare: Callable[[str], str],
+        device: torch.device,
+    ):
+        # HF repo: nạp đúng revision cố định; thư mục local: không cần revision
+        revision = None if Path(source).is_dir() else revision
+        self.max_len, self.prepare, self.device = max_len, prepare, device
+        self.tokenizer = AutoTokenizer.from_pretrained(source, revision=revision)
+        self.model = AutoModelForSequenceClassification.from_pretrained(
+            source,
+            revision=revision,
+            dtype=torch.float32,
+        ).to(device)
+        self.model.eval()
+
+        label_map = _load_label_mapping(source, revision)
+        # index of the class whose original label value is 1 ("scam")
+        self.scam_index = int(next(k for k, v in label_map.items() if int(v) == 1))
+        self.ham_index = 1 - self.scam_index
+
+    def score(self, raw_text: str) -> float:
+        enc = self.tokenizer(
+            self.prepare(raw_text),
+            truncation=True,
+            max_length=self.max_len,
+            return_tensors="pt",
+        ).to(self.device)
+        with torch.inference_mode():
+            logits = self.model(**enc).logits[0].float()
+        return float(logits[self.scam_index] - logits[self.ham_index])
+
+
 class ScamSMSDetector:
     def __init__(
         self,
         model_dir: Union[str, Path] = MODEL_DIR,
         visobert_source: Union[str, Path] = VISOBERT_SOURCE,
+        phobert_source: Union[str, Path] = PHOBERT_SOURCE,
     ):
         model_dir = Path(model_dir)
-        visobert_source = str(visobert_source)
 
         self.word_vectorizer = joblib.load(model_dir / f"word_tfidf_vectorizer.joblib")
         self.logreg_model = joblib.load(model_dir / f"logreg_model.joblib")
@@ -78,51 +121,30 @@ class ScamSMSDetector:
         assert list(self.logreg_model.classes_) == [0, 1]
         assert list(self.svm_model.classes_) == [0, 1]
 
-        # ViSoBERT -- load 1 lần từ đầu thay vì sau mỗi request
+        # 2 transformer -- load 1 lần từ đầu thay vì sau mỗi request
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        # HF repo: nạp đúng revision cố định; thư mục local: không cần revision
-        revision = None if Path(visobert_source).is_dir() else VISOBERT_REVISION
-        self.visobert_tokenizer = AutoTokenizer.from_pretrained(visobert_source, revision=revision)
-        self.visobert_model = AutoModelForSequenceClassification.from_pretrained(
-            visobert_source,
-            revision=revision,
-            dtype=torch.float32,
-        ).to(self.device)
-        self.visobert_model.eval()
-
-        label_map = _load_label_mapping(visobert_source, revision)
-        # index of the class whose original label value is 1 ("scam")
-        self.visobert_scam_index = int(next(k for k, v in label_map.items() if int(v) == 1))
-        self.visobert_ham_index = 1 - self.visobert_scam_index
+        self.visobert = _TransformerScorer(
+            str(visobert_source), VISOBERT_REVISION, VISOBERT_MAX_LEN, prepare_text_visobert, self.device
+        )
+        self.phobert = _TransformerScorer(
+            str(phobert_source), PHOBERT_REVISION, PHOBERT_MAX_LEN, prepare_text_phobert, self.device
+        )
 
         self.ens_mean = np.array(ENSEMBLE_SCALER_MEAN)
         self.ens_scale = np.array(ENSEMBLE_SCALER_SCALE)
         self.ens_coef = np.array(ENSEMBLE_COEF)
 
-    def _score_visobert(self, text: str) -> float:
-        # logits[scam] - logits[ham]
-        enc = self.visobert_tokenizer(
-            text,
-            truncation=True,
-            max_length=VISOBERT_MAX_LEN,
-            return_tensors="pt",
-        ).to(self.device)
-        with torch.inference_mode():
-            logits = self.visobert_model(**enc).logits[0].float()
-        return float(logits[self.visobert_scam_index] - logits[self.visobert_ham_index])
-
     def predict(self, raw_text: str) -> Dict:
         """
-        Chạy cả 3 model trên 1 tin nhắn sms rồi gộp điểm thô của chúng
+        Chạy cả 4 model trên 1 tin nhắn sms rồi gộp điểm thô của chúng
         bằng stacking logistic regression (stack_lr) trên z-score:
             score = intercept + sum_i coef[i] * (s_i - mean[i]) / scale[i]
         scam nếu score >= ENSEMBLE_THRESHOLD
         - Tham số lấy từ Ensemble_v2.ipynb, chỉnh trong config.py
         """
 
-        # tiền xử lý
+        # tiền xử lý cho 2 model TF-IDF (transformer tự tiền xử lý trong .score)
         clean_text = prepare_text(raw_text)
-        visobert_text = prepare_text_visobert(raw_text)
 
         # Logistic Regression: log-odds
         score_logreg = float(
@@ -138,11 +160,12 @@ class ScamSMSDetector:
             )[0, 1]
         ))
 
-        # ViSoBERT
-        score_visobert = self._score_visobert(visobert_text)
+        # ViSoBERT, PhoBERT
+        score_visobert = self.visobert.score(raw_text)
+        score_phobert = self.phobert.score(raw_text)
 
-        # Kết hợp 3 kết quả
-        scores = np.array([score_logreg, score_svm, score_visobert])
+        # Kết hợp 4 kết quả (thứ tự ENSEMBLE_MODELS)
+        scores = np.array([score_logreg, score_svm, score_visobert, score_phobert])
         z = (scores - self.ens_mean) / self.ens_scale
         ensemble_score = float(ENSEMBLE_INTERCEPT + z @ self.ens_coef)
         is_scam = ensemble_score >= ENSEMBLE_THRESHOLD
@@ -156,6 +179,7 @@ class ScamSMSDetector:
             "proba_word_tfidf_logreg": _sigmoid(score_logreg),
             "proba_char_tfidf_svm": _sigmoid(score_svm),
             "proba_visobert": _sigmoid(score_visobert / VISOBERT_TEMPERATURE),
+            "proba_phobert": _sigmoid(score_phobert / PHOBERT_TEMPERATURE),
             "ensemble_score": ensemble_score,
             "confidence_scam": _sigmoid(ensemble_score),
             "threshold": _sigmoid(ENSEMBLE_THRESHOLD),

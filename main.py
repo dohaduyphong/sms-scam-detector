@@ -11,6 +11,7 @@ def print_result(result: dict) -> None:
     print(f"Word TF-IDF + LogReg : {result['proba_word_tfidf_logreg']:.3f}")
     print(f"Char TF-IDF + SVM    : {result['proba_char_tfidf_svm']:.3f}")
     print(f"ViSoBERT             : {result['proba_visobert']:.3f}")
+    print(f"PhoBERT              : {result['proba_phobert']:.3f}")
     print(f"Confidence (scam)    : {result['confidence_scam']:.1%}")
     print(f"Label                : {result['label'].upper()}")
 

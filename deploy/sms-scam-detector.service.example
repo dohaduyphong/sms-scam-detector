@@ -27,15 +27,18 @@ Type=simple
 WorkingDirectory=<APP_DIR>
 Environment=PYTHONUNBUFFERED=1
 
-# PhoBERT (not in git) comes from its public Hugging Face repo -- no token needed.
-# First start downloads ~540MB into HF_HOME (default ~/.cache/huggingface), then
-# reuses the cache. Remove this line to use <APP_DIR>/models/phobert_full/ instead.
+# ViSoBERT + PhoBERT (not in git) come from their public Hugging Face repos -- no token
+# needed. The commit of each repo is pinned in scam_detector/config.py (*_REVISION).
+# First start downloads ~930MB into HF_HOME (default ~/.cache/huggingface), then
+# reuses the cache. Remove these lines to use <APP_DIR>/models/visobert/ and
+# <APP_DIR>/models/phobert_base_v2/ instead (or let config.py pick the HF repos).
 
+Environment=VISOBERT_SOURCE=dohaduyphong/visobert-scam-sms-vn
 Environment=PHOBERT_SOURCE=dohaduyphong/phobert-scam-sms-vn
 #Environment=HF_HOME=<APP_DIR>/.cache/huggingface
 
 # Bound to localhost only -- public traffic comes through Nginx/xCloud.
-# One worker: each worker would load its own copy of PhoBERT (~1GB RAM).
+# One worker: each worker would load its own copy of both transformers (~2.5GB RAM).
 ExecStart=<APP_DIR>/.venv/bin/uvicorn api:app --host 127.0.0.1 --port 8000 --workers 1 --proxy-headers --forwarded-allow-ips 127.0.0.1
 
 Restart=on-failure

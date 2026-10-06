@@ -14,7 +14,8 @@
 #   SYSTEMD_SCOPE   user (default): systemctl --user, as the deploy user
 #                   system: optional system-level unit, restarted via `sudo -n`
 #   HEALTH_URL      default: http://127.0.0.1:8000/health
-#   HEALTH_TIMEOUT  seconds to wait for /health after restart (default: 180)
+#   HEALTH_TIMEOUT  seconds to wait for /health after restart (default: 420; the first start
+#                   after a model change downloads ViSoBERT + PhoBERT, ~930 MB, from Hugging Face)
 #   FORCE_PIP=1     run pip install even if requirements.txt did not change
 #   FORCE_RESTART=1 restart even if there were no new commits
 set -euo pipefail
@@ -23,7 +24,7 @@ APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SERVICE_NAME="${SERVICE_NAME:-sms-scam-detector}"
 SYSTEMD_SCOPE="${SYSTEMD_SCOPE:-user}"
 HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:8000/health}"
-HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-180}"
+HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-420}"
 # CPU-only torch wheels (the default PyPI torch on Linux bundles CUDA, several GB).
 TORCH_INDEX_URL="https://download.pytorch.org/whl/cpu"
 
@@ -53,12 +54,19 @@ if [ "$SYSTEMD_SCOPE" = user ] && ! systemctl --user cat "$SERVICE_NAME" >/dev/n
     die "User unit '$SERVICE_NAME' not found (XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR). See DEPLOY.md section 4."
 fi
 
-if [ "$SYSTEMD_SCOPE" = user ] && [ ! -d models/visobert_full ] &&
-    ! systemctl --user cat "$SERVICE_NAME" 2>/dev/null | grep -q '^Environment=VISOBERT_SOURCE='; then
-    log "WARNING: neither models/visobert_full/ nor VISOBERT_SOURCE in the unit -- ViSoBERT"
-    log "         will fail to load. Copy it first, e.g. from your machine:"
-    log "         rsync -avz models/visobert_full/ <user>@<host>:$APP_DIR/models/visobert_full/"
-fi
+# Transformers (not in git): a local folder in models/ wins, else <NAME>_SOURCE in the unit,
+# else the HF repo pinned in scam_detector/config.py (downloaded on first start).
+for m in visobert:VISOBERT phobert_base_v2:PHOBERT; do
+    dir="${m%%:*}" var="${m##*:}"
+    if [ -d "models/$dir" ]; then
+        log "$var: local models/$dir/"
+    elif [ "$SYSTEMD_SCOPE" = user ] &&
+        systemctl --user cat "$SERVICE_NAME" 2>/dev/null | grep -q "^Environment=${var}_SOURCE="; then
+        log "$var: ${var}_SOURCE from the unit (pinned ${var}_REVISION in config.py if it is a HF repo)"
+    else
+        log "$var: Hugging Face repo pinned in scam_detector/config.py"
+    fi
+done
 
 if ! git diff --quiet || ! git diff --cached --quiet; then
     git status --short

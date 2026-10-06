@@ -21,39 +21,45 @@ Frontend: GitHub Pages (https://dohaduyphong.github.io/sms-scam-detector/, from 
 | Public URL | `https://api.duyphong.info` |
 | Endpoints | `GET /health` → `{"status":"ok"}`, `POST /predict` `{"message": "..."}` |
 | Python | 3.12 (Ubuntu 24.04 default) or 3.11. Tested with both. |
-| RAM | ~1–1.5 GB for the process (PhoBERT fp32 + torch). Use 1 Uvicorn worker. |
+| RAM | ~2.5 GB for the process (ViSoBERT + PhoBERT fp32 + torch). Use 1 Uvicorn worker. |
 | Process manager | systemd **user** service `sms-scam-detector` of the deploy user (no sudo; linger enabled so it starts at boot) |
 
 ## 1. Models
 
-All four TF-IDF/LogReg/SVM models are tracked in git, so `git clone` gets them.
-**PhoBERT is not in git** (`models/phobert_full/` is gitignored, ~517 MB).
+The four TF-IDF/LogReg/SVM files are tracked in git, so `git clone` gets them.
+**The two transformers are not in git** (`models/visobert/`, `models/phobert_base_v2/` are gitignored).
 
 | Model | Path | In git? |
 |---|---|---|
-| Word TF-IDF vectorizer | `models/word_tfidf_vectorizer_full.joblib` | yes |
-| Logistic Regression | `models/logreg_model_full.joblib` | yes |
-| Char TF-IDF vectorizer | `models/char_tfidf_vectorizer_full.joblib` | yes |
-| SVM (calibrated) | `models/svm_model_full.joblib` | yes |
-| PhoBERT weights, tokenizer, `label_mapping.json` | `models/phobert_full/` | **no** |
+| Word TF-IDF vectorizer | `models/word_tfidf_vectorizer.joblib` | yes |
+| Logistic Regression | `models/logreg_model.joblib` | yes |
+| Char TF-IDF vectorizer | `models/char_tfidf_vectorizer.joblib` | yes |
+| SVM (calibrated) | `models/svm_model.joblib` | yes |
+| ViSoBERT weights, tokenizer, `label_mapping.json` | `models/visobert/` | **no** (~390 MB) |
+| PhoBERT weights, tokenizer, `label_mapping.json` | `models/phobert_base_v2/` | **no** (~540 MB) |
 
-**Production source of PhoBERT: the Hugging Face model repo
-[`dohaduyphong/phobert-scam-sms-vn`](https://huggingface.co/dohaduyphong/phobert-scam-sms-vn).**
-The systemd template sets `PHOBERT_SOURCE=dohaduyphong/phobert-scam-sms-vn`; on first start
-the server downloads it (~540 MB) into the Hugging Face cache (`HF_HOME`, default
-`~/.cache/huggingface`) and reuses the cache afterwards.
+**Production source of the transformers: their public Hugging Face model repos**, at the
+commit pinned in `scam_detector/config.py` (`VISOBERT_REVISION`, `PHOBERT_REVISION`):
 
-- The repo is **public: no token, no `huggingface-cli login`, no secret needed.**
-- Its files are byte-identical to the local `models/phobert_full/` (verified; same predictions).
-- `label_mapping.json` is fetched from the same repo (`scam_detector/detector.py`).
-- Never commit the 517 MB model to git. To publish a retrained PhoBERT, use
-  `push_phobert_to_hub.py` (needs a write token on the machine that pushes, not on the server).
+- ViSoBERT: [`dohaduyphong/visobert-scam-sms-vn`](https://huggingface.co/dohaduyphong/visobert-scam-sms-vn)
+- PhoBERT: [`dohaduyphong/phobert-scam-sms-vn`](https://huggingface.co/dohaduyphong/phobert-scam-sms-vn)
 
-Without `PHOBERT_SOURCE`, `scam_detector/config.py` falls back to the local folder
-`models/phobert_full/` (local development; or copy it to the server with `rsync` as an
-offline alternative).
+On the first start after a model change, the server downloads them (~930 MB) into the
+Hugging Face cache (`HF_HOME`, default `~/.cache/huggingface`) and reuses the cache afterwards.
+The pinned commit guarantees the server loads exactly the models the ensemble parameters
+were fitted on, even if the repo receives newer uploads.
 
-`models/phobert/` (older PhoBERT) and the `*.joblib` files without `_full` are not used by the API.
+- The repos are **public: no token, no `huggingface-cli login`, no secret needed.**
+- `label_mapping.json` is fetched from the same repo and commit (`scam_detector/detector.py`).
+- To pre-download before a deploy (avoids a long first start):
+  `hf download dohaduyphong/phobert-scam-sms-vn --revision <PHOBERT_REVISION>` (same for ViSoBERT).
+- Never commit the models to git. A retrained transformer is uploaded to its HF repo, the
+  ensemble is refitted (`Ensemble_v2(1).ipynb`), and the new commit hash goes into `config.py`.
+
+When `models/visobert/` or `models/phobert_base_v2/` exists, `config.py` uses that local folder
+instead (local development; or copy it to the server with `rsync` as an offline alternative).
+The `*_full.joblib` files and `models/visobert_full/` are trained on the full dataset and are
+not used by the API (the ensemble parameters only match the models trained on `train.csv`).
 
 ## 2. Install
 
@@ -69,7 +75,7 @@ python3 -m venv .venv
 .venv/bin/pip install --upgrade pip
 # --extra-index-url: CPU-only torch (PyPI's Linux torch bundles CUDA, several GB)
 .venv/bin/pip install --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.txt
-# PhoBERT is downloaded from Hugging Face on first start (section 1)
+# ViSoBERT and PhoBERT are downloaded from Hugging Face on first start (section 1)
 ```
 
 Keep `scikit-learn==1.6.1`: the `.joblib` models were trained with it.
@@ -80,8 +86,10 @@ Set in the systemd unit. No secrets or tokens are needed.
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `PHOBERT_SOURCE` | unset → `<APP_DIR>/models/phobert_full` | **production: `dohaduyphong/phobert-scam-sms-vn`** (set in template). Local folder or HF repo id |
-| `HF_HOME` | `~/.cache/huggingface` | optional: where the PhoBERT download is cached |
+| `VISOBERT_SOURCE` | `models/visobert/` if it exists, else `dohaduyphong/visobert-scam-sms-vn` | Local folder or HF repo id (set in template) |
+| `PHOBERT_SOURCE` | `models/phobert_base_v2/` if it exists, else `dohaduyphong/phobert-scam-sms-vn` | Local folder or HF repo id (set in template) |
+| `VISOBERT_REVISION`, `PHOBERT_REVISION` | commit pinned in `config.py` | HF commit to load; ignored for a local folder. Normally leave unset |
+| `HF_HOME` | `~/.cache/huggingface` | optional: where the model downloads are cached |
 
 CORS origins are in `scam_detector/config.py` (`CORS_ORIGINS`).
 
@@ -148,7 +156,8 @@ cd <APP_DIR> && deploy/update.sh
 ```
 
 `git pull --ff-only` → `pip install` only if `requirements.txt` changed →
-`systemctl --user restart sms-scam-detector` → wait for `/health` (up to 180s). No sudo.
+`systemctl --user restart sms-scam-detector` → wait for `/health` (up to 420s: the first start
+after a model change downloads ~930 MB). No sudo.
 It never runs `git reset`/`git clean`; it stops before pulling if tracked files have local
 changes or the user unit is not found.
 
@@ -156,6 +165,6 @@ Options: `FORCE_PIP=1`, `FORCE_RESTART=1`, `HEALTH_TIMEOUT=<s>`, `SERVICE_NAME=<
 With the optional system-level unit, use `SYSTEMD_SCOPE=system`; it restarts via
 `sudo -n systemctl restart` (never prompts, so it needs a matching sudoers rule).
 
-If PhoBERT itself changes, push it to the HF repo and restart; to force a fresh download,
-remove `~/.cache/huggingface/hub/models--dohaduyphong--phobert-scam-sms-vn` first.
-`git pull` never updates the model.
+If a transformer changes, upload it to its HF repo, refit the ensemble and update the pinned
+revision in `config.py`; the deploy then downloads the new commit on restart. `git pull` alone
+never changes which model files are loaded.

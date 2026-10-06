@@ -15,31 +15,38 @@ const PREDICT_ENDPOINT = `${API_BASE_URL}/predict`;
 
 // Display-only mirror of scam_detector/config.py -- keep in sync.
 // THRESHOLD = sigmoid(ENSEMBLE_THRESHOLD); weight = phần của |coef| trong ENSEMBLE_COEF.
-const THRESHOLD = 0.492;
+const THRESHOLD = 0.635;
 const MODELS = [
   {
     key: "proba_word_tfidf_logreg",
     name: "Word TF-IDF + Logistic Regression",
-    weight: 0.55,
+    weight: 0.54,
     desc: "Đặc trưng theo từ và cụm 2 từ.",
   },
   {
     key: "proba_char_tfidf_svm",
     name: "Char TF-IDF + Linear SVM",
-    weight: 0.2,
+    weight: 0.08,
     desc: "N-gram ký tự 3–5, bền với lỗi chính tả và cách viết biến thể.",
   },
   {
     key: "proba_visobert",
     name: "ViSoBERT",
-    weight: 0.25,
-    desc: "Mô hình ngôn ngữ tiếng Việt mạng xã hội được fine-tune, hiểu ngữ cảnh của cả câu.",
+    weight: 0.07,
+    desc: "Mô hình ngôn ngữ pretrain trên văn bản mạng xã hội, bền với tin không dấu và teencode.",
+  },
+  {
+    key: "proba_phobert",
+    name: "PhoBERT",
+    weight: 0.31,
+    desc: "Mô hình ngôn ngữ tiếng Việt chuẩn (văn bản đã tách từ), hiểu ngữ cảnh của cả câu.",
   },
 ];
 
 // Risk colours for a percentage: >= HIGH red, >= MID amber, else green.
-const HIGH_RISK = 60;
-const MID_RISK = THRESHOLD;
+// HIGH_RISK phải lớn hơn ngưỡng (63.5%): vùng vàng = vừa qua ngưỡng, chưa chắc chắn.
+const HIGH_RISK = 80;
+const MID_RISK = THRESHOLD*100;
 
 // Tin mẫu cho nút "Dùng tin mẫu": trộn cả scam và hợp lệ. Số điện thoại / STK / link là giả.
 const SAMPLES = [
@@ -121,7 +128,7 @@ MODELS.forEach((m, i) => {
 });
 
 $("rules-note").textContent =
-  `Điểm tổng hợp do một mô hình logistic regression (stacking) tính từ điểm chuẩn hoá của 3 mô hình; ` +
+  `Điểm tổng hợp do một mô hình logistic regression (stacking) tính từ điểm chuẩn hoá của ${MODELS.length} mô hình; ` +
   `từ ${pct(THRESHOLD)} trở lên là scam.`;
 
 // ---------- events ----------

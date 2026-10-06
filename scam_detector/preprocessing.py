@@ -3,6 +3,7 @@ Tiền xử lý tin nhắn SMS Tiếng Việt
 """
 import re
 import string
+import threading
 import unicodedata
 
 # Các token PII có sẵn trong bộ dữ liệu
@@ -286,7 +287,7 @@ def tag_pii(text: str) -> str:
     text = _TIME_PATTERN.sub(" [TIME] ", text)
     text = _MONEY_PATTERN.sub(" [MONEY] ", text)
     text = _NUMBER_PATTERN.sub(" [NUMBER] ", text)
-
+    
     return re.sub(r"\s+", " ", text).strip()
 
 
@@ -312,3 +313,32 @@ def prepare_text(raw_text: str) -> str:
 def prepare_text_visobert(raw_text: str) -> str:
     text = unicodedata.normalize("NFC", str(raw_text))
     return tag_pii(tag_links(text))
+
+
+# ============================================================
+# Pipeline cho PhoBERT
+#
+# PhoBERT được pretrain trên văn bản đã tách từ ("trúng_thưởng"):
+# giống ViSoBERT rồi tách từ bằng pyvi, giữ nguyên token PII
+# (pyvi cắt "[MONEY]" thành "[ MONEY ]"). Giống lúc train
+# (Model_Train_Transformers_Compare.ipynb).
+# ============================================================
+
+_PII_SPLIT_PATTERN = re.compile(r"(\[(?:" + "|".join(PII_TOKENS) + r")\])")
+_segment_lock = threading.Lock()  # pyvi (CRF) không đảm bảo an toàn đa luồng; FastAPI chạy request trong threadpool
+
+
+def segment_vi(text: str) -> str:
+    from pyvi import ViTokenizer  # nạp model CRF lần đầu gọi
+
+    parts = _PII_SPLIT_PATTERN.split(str(text))
+    with _segment_lock:
+        return " ".join(
+            p if _PII_SPLIT_PATTERN.fullmatch(p) else ViTokenizer.tokenize(p)
+            for p in parts
+            if p.strip()
+        )
+
+
+def prepare_text_phobert(raw_text: str) -> str:
+    return segment_vi(prepare_text_visobert(raw_text))
