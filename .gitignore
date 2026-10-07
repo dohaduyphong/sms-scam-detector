@@ -13,13 +13,14 @@ models/visobert_full/
 models/phobert_base_v2/
 models/compare/
 datasets/
+report/
 
 Model_Comparison.ipynb
 Model_Train_Transformers_Compare.ipynb
 Ensemble_v2(1).ipynb
 Model_Train_PhoBERT_ViSoBERT_Final(1).ipynb
 requirements-notebook.txt
-
+stress_test.py
 # Python caches / tooling
 .pytest_cache/
 .mypy_cache/
