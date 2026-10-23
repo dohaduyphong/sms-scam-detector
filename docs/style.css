@@ -33,7 +33,7 @@ body {
 .hidden { display: none !important; }
 .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
 
-/* ---------- header + tabs ---------- */
+/* Phần đầu trang và các tab */
 .topbar { border-bottom: 1px solid var(--border); background: rgba(7, 11, 20, 0.9); }
 .topbar-inner { display: flex; align-items: center; justify-content: space-between; height: 64px; }
 .brand { font: 700 1.15rem var(--mono); letter-spacing: 0.02em; }
@@ -58,7 +58,7 @@ body {
 
 main.wrap { padding-top: 32px; padding-bottom: 24px; }
 
-/* ---------- cards ---------- */
+/* Thẻ */
 .card { background: var(--surface); border: 1px solid var(--border); padding: 32px; }
 
 .eyebrow {
@@ -118,7 +118,7 @@ textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .hint { margin-left: auto; font: 500 0.7rem var(--mono); letter-spacing: 0.12em; color: var(--muted); }
 
-/* ---------- states ---------- */
+/* Trạng thái */
 .error-box {
   margin-top: 16px;
   padding: 14px 18px;
@@ -138,7 +138,7 @@ textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ---------- results ---------- */
+/* Kết quả */
 .results { margin-top: 24px; }
 .model-results { display: grid; gap: 12px; margin-bottom: 28px; }
 .model-row { padding: 14px 16px; background: var(--surface-2); border: 1px solid var(--border); }
@@ -171,7 +171,7 @@ textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3
 .label-badge.scam { color: var(--danger); border-color: rgba(248, 113, 113, 0.5); background: rgba(248, 113, 113, 0.1); }
 .label-badge.ham { color: var(--safe); border-color: rgba(74, 222, 128, 0.5); background: rgba(74, 222, 128, 0.1); }
 
-/* ---------- models tab ---------- */
+/* Tab mô hình */
 .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
 .model-card { padding: 24px; }
 .num { margin: 0 0 14px; color: var(--accent-text); font: 500 0.8rem var(--mono); letter-spacing: 0.14em; }

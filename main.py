@@ -1,5 +1,7 @@
 """
-Main
+Chạy thử bộ phát hiện trên dòng lệnh:
+    python main.py "nội dung tin nhắn"   kiểm tra một tin
+    python main.py                       nhập lần lượt nhiều tin
 """
 import sys
 

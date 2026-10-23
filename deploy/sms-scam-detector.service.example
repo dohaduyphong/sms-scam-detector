@@ -1,9 +1,9 @@
-# systemd USER unit for the SMS Scam Detector API (FastAPI + Uvicorn, no Docker).
-# Runs as the deploy user, no sudo needed. Requires lingering for that user
-# (`loginctl enable-linger <user>`, done once by an admin) so it starts at boot.
+# Unit systemd cấp user cho API SMS Scam Detector (FastAPI + Uvicorn, không dùng Docker).
+# Chạy bằng tài khoản deploy, không cần sudo. Tài khoản đó cần bật lingering
+# (`loginctl enable-linger <user>`, quản trị viên chạy một lần) để unit tự chạy khi máy khởi động.
 #
-# Replace <APP_DIR> with the absolute path of the git checkout,
-# e.g. /home/<user>/sms-scam-detector, then install as the deploy user:
+# Thay <APP_DIR> bằng đường dẫn tuyệt đối tới thư mục mã nguồn,
+# ví dụ /home/<user>/sms-scam-detector, rồi cài đặt bằng tài khoản deploy:
 #
 #   mkdir -p ~/.config/systemd/user
 #   cp deploy/sms-scam-detector.service.example ~/.config/systemd/user/sms-scam-detector.service
@@ -12,12 +12,12 @@
 #   systemctl --user enable --now sms-scam-detector
 #   journalctl --user -u sms-scam-detector -f
 #
-# If `systemctl --user` says "Failed to connect to bus" (e.g. after `su`/sudo
-# into the user), run first:  export XDG_RUNTIME_DIR=/run/user/$(id -u)
+# Nếu `systemctl --user` báo "Failed to connect to bus" (ví dụ sau khi `su`/sudo
+# sang tài khoản đó), chạy trước:  export XDG_RUNTIME_DIR=/run/user/$(id -u)
 #
-# Optional system-level unit instead (needs root): copy to
-# /etc/systemd/system/, add `User=<user>` and `Group=<user>` under [Service],
-# and change WantedBy to multi-user.target.
+# Nếu muốn dùng unit cấp hệ thống (cần root): chép vào
+# /etc/systemd/system/, thêm `User=<user>` và `Group=<user>` trong [Service],
+# và đổi WantedBy thành multi-user.target.
 
 [Unit]
 Description=SMS Scam Detector API (FastAPI/Uvicorn)
@@ -27,18 +27,18 @@ Type=simple
 WorkingDirectory=<APP_DIR>
 Environment=PYTHONUNBUFFERED=1
 
-# ViSoBERT + PhoBERT (not in git) come from their public Hugging Face repos -- no token
-# needed. The commit of each repo is pinned in scam_detector/config.py (*_REVISION).
-# First start downloads ~930MB into HF_HOME (default ~/.cache/huggingface), then
-# reuses the cache. Remove these lines to use <APP_DIR>/models/visobert/ and
-# <APP_DIR>/models/phobert_base_v2/ instead (or let config.py pick the HF repos).
+# ViSoBERT và PhoBERT (không có trong git) được tải từ repo Hugging Face công khai, không cần token.
+# Commit của từng repo được ghim trong scam_detector/config.py (*_REVISION).
+# Lần khởi động đầu tải khoảng 930MB vào HF_HOME (mặc định ~/.cache/huggingface), các lần sau
+# dùng lại cache. Xoá các dòng này để dùng <APP_DIR>/models/visobert/ và
+# <APP_DIR>/models/phobert_base_v2/ (hoặc để config.py tự chọn repo HF).
 
 Environment=VISOBERT_SOURCE=dohaduyphong/visobert-scam-sms-vn
 Environment=PHOBERT_SOURCE=dohaduyphong/phobert-scam-sms-vn
 #Environment=HF_HOME=<APP_DIR>/.cache/huggingface
 
-# Bound to localhost only -- public traffic comes through Nginx/xCloud.
-# One worker: each worker would load its own copy of both transformers (~2.5GB RAM).
+# Chỉ lắng nghe trên localhost; truy cập từ bên ngoài đi qua Nginx/xCloud.
+# Chỉ dùng một worker, vì mỗi worker sẽ tự nạp một bản của cả hai transformer (khoảng 2.5GB RAM).
 ExecStart=<APP_DIR>/.venv/bin/uvicorn api:app --host 127.0.0.1 --port 8000 --workers 1 --proxy-headers --forwarded-allow-ips 127.0.0.1
 
 Restart=on-failure

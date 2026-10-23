@@ -1,10 +1,10 @@
 """
-Backend FastAPI
+Backend FastAPI.
 
-Chạy:
+Chạy trên máy:
     uvicorn api:app --reload --port 8000
 
-Production (sau Nginx/xCloud, xem DEPLOY.md):
+Chạy trên máy chủ (phía sau Nginx/xCloud, xem DEPLOY.md):
     .venv/bin/uvicorn api:app --host 127.0.0.1 --port 8000
 """
 from fastapi import FastAPI, HTTPException

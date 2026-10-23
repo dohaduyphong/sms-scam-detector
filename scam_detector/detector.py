@@ -1,8 +1,5 @@
 """
-Phần cốt lõi phát hiện scam
-- Load các model
-- Chạy các model trên SMS
-- Gộp kết quả các model thành kết quả cuối cùng (stack_lr, Ensemble_v2.ipynb)
+Nạp 4 mô hình và gộp điểm của chúng bằng stack_lr (Ensemble_v2.ipynb).
 """
 import json
 import math
@@ -36,11 +33,8 @@ from .preprocessing import prepare_text, prepare_text_phobert, prepare_text_viso
 
 def _load_label_mapping(source: str, revision: Optional[str] = None) -> dict:
     """
-    label_mapping.json isn't a standard transformers file, so
-    from_pretrained() won't fetch it for us. Read it straight off disk
-    if `source` is a local folder; otherwise treat `source` as a HF
-    Hub repo id and download just that one file (cached after the
-    first call, same as the model weights).
+    from_pretrained() không tải label_mapping.json, nên đọc file này từ thư mục
+    local hoặc tải riêng từ repo trên HF Hub.
     """
     local_path = Path(source) / "label_mapping.json"
     if local_path.exists():
@@ -64,7 +58,7 @@ def _sigmoid(x: float) -> float:
 
 
 class _TransformerScorer:
-    """Transformer phân loại 2 lớp đã fine-tune, load 1 lần; điểm = logits[scam] - logits[ham]."""
+    """Transformer phân loại hai lớp đã fine-tune, chỉ load một lần. Điểm trả về là logits[scam] - logits[ham]."""
 
     def __init__(
         self,
@@ -74,7 +68,7 @@ class _TransformerScorer:
         prepare: Callable[[str], str],
         device: torch.device,
     ):
-        # HF repo: nạp đúng revision cố định; thư mục local: không cần revision
+        # Repo HF phải nạp đúng revision đã ghim; thư mục local thì không cần
         revision = None if Path(source).is_dir() else revision
         self.max_len, self.prepare, self.device = max_len, prepare, device
         self.tokenizer = AutoTokenizer.from_pretrained(source, revision=revision)
@@ -86,7 +80,7 @@ class _TransformerScorer:
         self.model.eval()
 
         label_map = _load_label_mapping(source, revision)
-        # index of the class whose original label value is 1 ("scam")
+        # Vị trí của lớp có nhãn gốc là 1 (scam)
         self.scam_index = int(next(k for k, v in label_map.items() if int(v) == 1))
         self.ham_index = 1 - self.scam_index
 
@@ -117,11 +111,11 @@ class ScamSMSDetector:
         self.char_vectorizer = joblib.load(model_dir / f"char_tfidf_vectorizer.joblib")
         self.svm_model = joblib.load(model_dir / f"svm_model.joblib")
 
-        # decision_function / predict_proba[:, 1] giả định lớp scam (1) là lớp dương
+        # decision_function và predict_proba[:, 1] đều coi lớp scam (1) là lớp dương
         assert list(self.logreg_model.classes_) == [0, 1]
         assert list(self.svm_model.classes_) == [0, 1]
 
-        # 2 transformer -- load 1 lần từ đầu thay vì sau mỗi request
+        # Load hai transformer một lần lúc khởi động, không load lại ở mỗi request
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.visobert = _TransformerScorer(
             str(visobert_source), VISOBERT_REVISION, VISOBERT_MAX_LEN, prepare_text_visobert, self.device
@@ -136,43 +130,41 @@ class ScamSMSDetector:
 
     def predict(self, raw_text: str) -> Dict:
         """
-        Chạy cả 4 model trên 1 tin nhắn sms rồi gộp điểm thô của chúng
+        Chạy cả bốn model trên một tin nhắn rồi gộp điểm thô của chúng
         bằng stacking logistic regression (stack_lr) trên z-score:
             score = intercept + sum_i coef[i] * (s_i - mean[i]) / scale[i]
-        scam nếu score >= ENSEMBLE_THRESHOLD
-        - Tham số lấy từ Ensemble_v2.ipynb, chỉnh trong config.py
+        Tin là scam khi score >= ENSEMBLE_THRESHOLD. Tham số lấy từ Ensemble_v2.ipynb
+        và được khai báo trong config.py.
         """
 
-        # tiền xử lý cho 2 model TF-IDF (transformer tự tiền xử lý trong .score)
+        # Tiền xử lý cho hai model TF-IDF; hai transformer tự tiền xử lý trong .score()
         clean_text = prepare_text(raw_text)
 
-        # Logistic Regression: log-odds
+        # Logistic Regression trả về log-odds
         score_logreg = float(
             self.logreg_model.decision_function(
                 self.word_vectorizer.transform([clean_text])
             )[0]
         )
 
-        # SVM (CalibratedClassifierCV): logit của xác suất scam
+        # SVM đã hiệu chỉnh (CalibratedClassifierCV) chỉ có xác suất, nên lấy logit của xác suất scam
         score_svm = _logit(float(
             self.svm_model.predict_proba(
                 self.char_vectorizer.transform([clean_text])
             )[0, 1]
         ))
 
-        # ViSoBERT, PhoBERT
         score_visobert = self.visobert.score(raw_text)
         score_phobert = self.phobert.score(raw_text)
 
-        # Kết hợp 4 kết quả (thứ tự ENSEMBLE_MODELS)
+        # Thứ tự điểm phải khớp với ENSEMBLE_MODELS
         scores = np.array([score_logreg, score_svm, score_visobert, score_phobert])
         z = (scores - self.ens_mean) / self.ens_scale
         ensemble_score = float(ENSEMBLE_INTERCEPT + z @ self.ens_coef)
         is_scam = ensemble_score >= ENSEMBLE_THRESHOLD
 
-        # return một dictionary các kết quả
-        # proba_* : xác suất scam của từng model (sigmoid của điểm thô)
-        # confidence_scam : xác suất của bộ stack_lr; threshold cùng thang
+        # proba_*: xác suất scam của từng model (sigmoid của điểm thô).
+        # confidence_scam: xác suất của bộ stack_lr, cùng thang với threshold.
         return {
             "text": raw_text,
             "clean_text": clean_text,

@@ -1,5 +1,5 @@
 """
-Tiền xử lý tin nhắn SMS Tiếng Việt
+Tiền xử lý tin nhắn tiếng Việt.
 """
 import re
 import string
@@ -9,18 +9,17 @@ import unicodedata
 # Các token PII có sẵn trong bộ dữ liệu
 PII_TOKENS = ["NAME", "PHONE", "BANK_ACC", "MONEY", "NUMBER", "TIME", "DATE", "LINK"]
 
-# tạm thời thay các token PII
+# Che token PII để lower() và bỏ dấu câu không làm vỡ "[MONEY]"
 _PII_PLACEHOLDER = {
     tok: f'xxpii{tok.lower().replace("_", "")}xx' for tok in PII_TOKENS
 }
-# khôi phục các PII
 _PII_RESTORE = {v: f"[{k}]" for k, v in _PII_PLACEHOLDER.items()}
 
 _PII_PATTERN = re.compile(
     r"\[(" + "|".join(PII_TOKENS) + r")\]", flags=re.IGNORECASE
 )
 
-# Giống Model_Train_LR_SVM.ipynb
+# Giống mẫu trong Model_Train_LR_SVM.ipynb
 _URL_PATTERN = re.compile(
     r"(https?:\/\/\s*\S+)"
     r"|(www\.\S+)"
@@ -28,7 +27,7 @@ _URL_PATTERN = re.compile(
     flags=re.IGNORECASE,
 )
 
-# Giống Model_Train_ViSoBERT_Final.ipynb (thêm .ly)
+# Giống mẫu trong Model_Train_ViSoBERT_Final.ipynb, có thêm đuôi .ly
 _URL_PATTERN_VISOBERT = re.compile(
     r"(https?:\/\/\s*\S+)"
     r"|(www\.\S+)"
@@ -36,13 +35,12 @@ _URL_PATTERN_VISOBERT = re.compile(
     flags=re.IGNORECASE,
 )
 
-# Tiền xử lý cho TF-IDF
+# Tiền xử lý cho hai model TF-IDF
 def preprocess_text(text: str) -> str:
     text = str(text)
 
-    text = _URL_PATTERN.sub(" [LINK] ", text) # thay link bằng token
+    text = _URL_PATTERN.sub(" [LINK] ", text)
 
-    # Lưu các token PII có sẵn
     def _protect(match: "re.Match[str]") -> str:
         token = match.group(1).upper()
         return f" {_PII_PLACEHOLDER[token]} "
@@ -50,22 +48,18 @@ def preprocess_text(text: str) -> str:
 
     text = _PII_PATTERN.sub(_protect, text)
 
-    text = text.lower() # viết thường
-    text = text.translate(str.maketrans("", "", string.punctuation)) # bỏ dấu câu
-    text = re.sub(r"\s+", " ", text).strip() # chuẩn hoá khoảng trắng
+    text = text.lower()
+    text = text.translate(str.maketrans("", "", string.punctuation))
+    text = re.sub(r"\s+", " ", text).strip()
 
-    # Khôi phục token PII
     for placeholder, restored in _PII_RESTORE.items():
         text = text.replace(placeholder, restored)
     return text
 
 
-# ============================================================
-# Chuẩn hoá thông tin định danh cá nhân (PII)
-# trong các tin nhắn do người dùng nhập vào
-# ============================================================
+# Chuẩn hoá thông tin định danh cá nhân (PII) trong tin nhắn người dùng nhập vào
 
-# 1. TKNH - Dựa trên các kí tự ở gần để phân biệt với sđt
+# 1. Số tài khoản ngân hàng: dựa vào các từ đứng gần để phân biệt với số điện thoại
 _VN_BANK_NAMES = (
     r"\b(?:vietcombank|vcb|vietinbank|viettinbank|ctg|bidv|agribank|"
     r"techcombank|tcb|mb\s?bank|mb|vpbank|vp\s?bank|acb|"
@@ -94,15 +88,15 @@ _BANK_ACC_PATTERN = re.compile(
     flags=re.IGNORECASE,
 )
 
-# 2. SĐT Việt Nam: Bắt đầu bằng (+84)/02/03/05/06/07/09, hoặc tổng đài 1800/1900
+# 2. Số điện thoại Việt Nam: bắt đầu bằng +84, 02, 03, 05, 06, 07, 09, hoặc tổng đài 1800/1900
 _PHONE_PATTERN = re.compile(
     r"(?:\+84|84)[\s.\-]?[235789](?:[\s.\-]?\d){8}\b"
     r"|\b0[235789](?:[\s.\-]?\d){8}\b"
     r"|\b1[89]00(?:[\s.\-]?\d){4,6}\b"
 )
 
-# 3. Ngày/tháng/năm: "20/09/2026", "20-9-26", "31/08", hoặc "ngày 20 tháng 9 năm 2026"
-#    "ngay" không dấu chỉ là ngày khi có "thang" ("nhan ngay 500MB" = nhận ngay)
+# 3. Ngày tháng: "20/09/2026", "20-9-26", "31/08", hoặc "ngày 20 tháng 9 năm 2026".
+#    "ngay" không dấu chỉ được coi là ngày khi đi kèm "thang" ("nhan ngay 500MB" nghĩa là nhận ngay).
 _DATE_VERBAL_PATTERN = re.compile(
     r"\b(?:ngày\s*\d{1,2}\b(?![.,]\d)(?:\s*tháng\s*\d{1,2}\b)?"
     r"|ngay\s*\d{1,2}\s*thang\s*\d{1,2}\b)"
@@ -120,7 +114,7 @@ _TIME_PATTERN = re.compile(
 )
 
 # 5. Tiền: "500k", "1.5tr", "2 triệu", "500.000đ", "1.000.000", "1,000,000 VND"
-#    Không dính chữ phía trước (gói "ST30K"); "3.072 MB", "50.000 TB" không phải tiền
+#    Không bắt khi dính chữ phía trước (gói "ST30K"); "3.072 MB" hay "50.000 TB" không phải tiền.
 _MONEY_PATTERN = re.compile(
     r"(?<!\w)(?:"
         r"\d+([.,]\d+)?\s*(k|tr|triệu|nghìn|ngàn|đ|d|vnđ|vnd)\b"
@@ -130,13 +124,13 @@ _MONEY_PATTERN = re.compile(
     flags=re.IGNORECASE,
 )
 
-# 6. Các số còn lại: chỉ số >= 4 chữ số, đứng riêng (không dính chữ: 2048MB, GS25)
-#    Dataset giữ nguyên số nhỏ: "giảm 60%", "3GB", "tặng 1 phần quà", "gọi 198"
+# 6. Các số còn lại: chỉ bắt số có từ 4 chữ số trở lên và đứng riêng (không dính chữ như 2048MB, GS25).
+#    Dataset giữ nguyên số nhỏ: "giảm 60%", "3GB", "tặng 1 phần quà", "gọi 198".
 _NUMBER_PATTERN = re.compile(r"(?<!\w)\d{4,}(?!\w)")
 
-# 7. Tên người: chuỗi 1-4 từ viết hoa (Nguyen Van A / NGUYEN VAN A)
-#   a. đứng sau ngữ cảnh/xưng hô: "Nguoi nhan: ...", "Quy khach ...", "anh Nam", ...
-#   b. bắt đầu bằng họ phổ biến, cần ít nhất 2 từ: "Trần Thị Bình", "PHAM DUC ANH"
+# 7. Tên người: chuỗi 1-4 từ viết hoa (Nguyen Van A, NGUYEN VAN A), khi chuỗi
+#   a. đứng sau từ ngữ cảnh hoặc xưng hô: "Nguoi nhan: ...", "Quy khach ...", "anh Nam"...
+#   b. bắt đầu bằng họ phổ biến và có ít nhất 2 từ: "Trần Thị Bình", "PHAM DUC ANH"
 _NAME_CONTEXT_PATTERN = re.compile(
     r"\b(?:"
         r"người\s+nhận|nguoi\s+nhan|người\s+gửi|nguoi\s+gui|"
@@ -148,20 +142,20 @@ _NAME_CONTEXT_PATTERN = re.compile(
     r")\b\s*[:\-]?\s*",
     flags=re.IGNORECASE,
 )
-# Xưng hô: phải viết thường ("anh Nam") để tránh tin viết Hoa Từng Chữ ("Anh Chi Oi")
+# Từ xưng hô phải viết thường ("anh Nam") để không bắt nhầm tin viết hoa từng chữ ("Anh Chi Oi")
 _NAME_HONORIFIC_PATTERN = re.compile(
     r"(?<![^\W\d_])(?:anh|chị|em|ông|bà|cô|chú|bác|cậu|dì|bạn|a|c|e)\s+"
 )
 _VN_SURNAMES = {
-    # có dấu (bỏ họ trùng từ/địa danh hay gặp: mai, cao, lý, hà, châu, thái, từ, triệu, ...)
+    # Họ có dấu, đã bỏ những họ trùng với từ hoặc địa danh hay gặp: mai, cao, lý, hà, châu, thái, từ, triệu...
     "nguyễn", "trần", "lê", "phạm", "hoàng", "huỳnh", "phan", "vũ", "võ",
     "đặng", "bùi", "đỗ", "hồ", "ngô", "dương", "đinh", "trịnh", "trương",
     "lương", "đoàn", "quách", "kiều",
-    # không dấu: chỉ những họ không trùng từ thường gặp
-    # (bỏ: tran=trân trọng, pham=phạm/phẩm, phan=phần, dang=đang, le=lễ, ...)
+    # Họ không dấu: chỉ giữ những họ không trùng với từ thường gặp
+    # (đã bỏ tran = trân trọng, pham = phạm/phẩm, phan = phần, dang = đang, le = lễ...)
     "nguyen", "huynh", "hoang", "bui", "quach",
 }
-# Từ viết hoa nhưng không phải tên (dạng không dấu), dừng chuỗi tên khi gặp
+# Những từ viết hoa nhưng không phải tên (dạng không dấu); gặp các từ này thì dừng chuỗi tên
 _NAME_STOPWORDS = {
     "so", "ma", "sinh", "ngay", "tai", "dia", "oi", "da", "vui", "xin", "cam",
     "kinh", "gui", "toi", "den", "tu", "va", "cua", "voi", "la", "co", "can",
@@ -171,11 +165,11 @@ _NAME_STOPWORDS = {
     "goi", "tin", "xu", "cuoc", "thong", "bao", "canh", "cuoi", "hoi", "nhap",
     "truy", "tra", "mua", "ban", "giam", "gia", "qua", "trung", "thuong",
 }
-# Xưng hô: không phải tên khi đứng đầu ("Anh Em Oi"), nhưng có thể là tên
-# ở giữa/cuối ("Phạm Đức Anh"). "chi" luôn dừng (Hồ Chí Minh, Anh Chi Oi)
+# Từ xưng hô đứng đầu thì không phải tên ("Anh Em Oi"), nhưng đứng giữa hoặc cuối thì có thể là tên
+# ("Phạm Đức Anh"). Riêng "chi" luôn dừng chuỗi tên (Hồ Chí Minh, Anh Chi Oi).
 _NAME_START_STOPWORDS = {"anh", "em", "ong", "ba", "ban"}
-# Âm tiết tiếng Việt (không dấu): phụ âm đầu + 1-3 nguyên âm + phụ âm cuối.
-# Loại được thương hiệu / tiếng Anh / viết tắt: Zalo, Viettel, Shopee, CSKH, GS25...
+# Âm tiết tiếng Việt không dấu gồm phụ âm đầu, 1-3 nguyên âm và phụ âm cuối.
+# Mẫu này loại được tên thương hiệu, từ tiếng Anh và chữ viết tắt: Zalo, Viettel, Shopee, CSKH, GS25...
 _VN_SYLLABLE = re.compile(
     r"(?:ngh|ng|gh|gi|kh|nh|ph|qu|th|tr|ch|[bcdghklmnpqrstvx])?"
     r"[aeiouy]{1,3}"
@@ -186,15 +180,15 @@ _NAME_GAP = re.compile(r"[ \t]+")
 
 
 def _fold(word: str) -> str:
-    # bỏ dấu, viết thường: "Nguyễn" -> "nguyen"
+    # Bỏ dấu và viết thường: "Nguyễn" thành "nguyen"
     word = unicodedata.normalize("NFD", word.lower()).replace("đ", "d")
     return "".join(c for c in word if unicodedata.category(c) != "Mn")
 
 
 def _name_word_style(m: "re.Match[str]", first: bool = True):
-    # "upper" (NGUYEN), "title" (Nguyen), "letter" (A), hoặc None (không phải tên)
+    # Trả về "upper" (NGUYEN), "title" (Nguyen), "letter" (A), hoặc None nếu không phải tên
     word, text = m.group(), m.string
-    # dính liền số/kí hiệu: GS25, SPAY_TRA, Laz+nx...
+    # Từ dính liền số hoặc ký hiệu (GS25, SPAY_TRA, Laz+nx...) không phải tên
     if m.end() < len(text) and (text[m.end()].isalnum() or text[m.end()] in "_+"):
         return None
     folded = _fold(word)
@@ -211,8 +205,8 @@ def _name_word_style(m: "re.Match[str]", first: bool = True):
 
 def _name_end(text: str, pos: int, max_words: int = 4):
     """
-    Đọc chuỗi từ viết hoa liền nhau bắt đầu tại `pos` (cùng 1 kiểu viết
-    hoa; chữ cái đơn như "A" trong "Nguyen Van A" chỉ được là chữ cuối).
+    Đọc chuỗi từ viết hoa liền nhau bắt đầu tại `pos`, cùng một kiểu viết hoa;
+    chữ cái đơn như "A" trong "Nguyen Van A" chỉ được đứng cuối.
     Trả về (vị trí kết thúc, số từ, kiểu viết hoa).
     """
     end, count, style = pos, 0, None
@@ -237,27 +231,27 @@ def _name_end(text: str, pos: int, max_words: int = 4):
 def tag_names(text: str) -> str:
     spans = []
 
-    # a1. sau ngữ cảnh: họ tên đầy đủ (>= 2 từ) hoặc 1 từ VIẾT HOA
+    # a1. Sau từ ngữ cảnh: họ tên đầy đủ (từ 2 từ trở lên) hoặc 1 từ viết hoa toàn bộ
     #     ("Quý khách Vạn sự như ý" không phải tên)
     for m in _NAME_CONTEXT_PATTERN.finditer(text):
         end, count, style = _name_end(text, m.end())
         if count >= 2 or (count == 1 and style == "upper"):
             spans.append((m.end(), end))
 
-    # a2. sau xưng hô: 1-4 từ ("anh Nam", "chị THẢO")
+    # a2. Sau từ xưng hô: 1-4 từ ("anh Nam", "chị THẢO")
     for m in _NAME_HONORIFIC_PATTERN.finditer(text):
         end, count, _ = _name_end(text, m.end())
         if count:
             spans.append((m.end(), end))
 
-    # b. bắt đầu bằng họ phổ biến: 2-4 từ
+    # b. Bắt đầu bằng họ phổ biến: 2-4 từ
     for m in _NAME_WORD.finditer(text):
         if m.group().lower() in _VN_SURNAMES and _name_word_style(m):
             end, count, _ = _name_end(text, m.start())
             if count >= 2:
                 spans.append((m.start(), end))
 
-    # gộp các đoạn chồng nhau rồi thay từ cuối lên đầu
+    # Gộp các đoạn chồng nhau rồi thay từ cuối chuỗi ngược lên đầu
     merged = []
     for start, end in sorted(spans):
         if merged and start <= merged[-1][1]:
@@ -269,17 +263,17 @@ def tag_names(text: str) -> str:
     return text
 
 
-# Giữ lại từ khoá ngân hàng, chỉ thay số TK -- đúng thứ tự của 2 nhánh
+# Giữ lại từ khoá ngân hàng và chỉ thay số tài khoản, theo đúng thứ tự trong hai nhánh của mẫu
 def _tag_bank_acc(m: "re.Match[str]") -> str:
     if m.group("kw") is not None:
         return f"{m.group('kw')} [BANK_ACC]"
     return f"[BANK_ACC] {m.group('kw2')}"
 
-# Phát hiện các thông tin định danh cá nhân trong văn bản ng dùng nhập vào, thay thế bằng token cho sẵn
+# Thay PII trong tin người dùng nhập bằng token của bộ dữ liệu
 def tag_pii(text: str) -> str:
     text = str(text)
 
-    text = tag_names(text)  # trước các tag khác để "[PHONE]"... không bị coi là tên
+    text = tag_names(text)  # chạy trước các bước khác để "[PHONE]"... không bị nhận nhầm là tên
     text = _BANK_ACC_PATTERN.sub(_tag_bank_acc, text)
     text = _PHONE_PATTERN.sub(" [PHONE] ", text)
     text = _DATE_NUMERIC_PATTERN.sub(" [DATE] ", text)
@@ -292,22 +286,17 @@ def tag_pii(text: str) -> str:
 
 
 def tag_links(text: str) -> str:
-    # Thay thế các link bằng 1 token [LINK]
-    # Chạy trước tag_pii để số trong link không bị tách thành [NUMBER]
+    # Chạy trước tag_pii để số nằm trong link không bị thay thành [NUMBER]
     return _URL_PATTERN_VISOBERT.sub(" [LINK] ", str(text))
 
 
 def prepare_text(raw_text: str) -> str:
-    # Chuẩn bị text cho Word/Char TF-IDF
+    # Chuẩn bị văn bản cho hai model TF-IDF theo từ và theo ký tự
     return preprocess_text(tag_pii(tag_links(raw_text)))
 
 
-# ============================================================
-# Pipeline cho ViSoBERT
-#
-# ViSoBERT được train trên văn bản thô (giữ hoa/thường, dấu câu),
-# chỉ thay link bằng [LINK] và chuẩn hoá Unicode NFC, không tách từ.
-# ============================================================
+# Pipeline cho ViSoBERT. Model được train trên văn bản thô (giữ chữ hoa và dấu câu),
+# nên chỉ thay link bằng [LINK] và chuẩn hoá Unicode NFC, không tách từ.
 
 
 def prepare_text_visobert(raw_text: str) -> str:
@@ -315,21 +304,16 @@ def prepare_text_visobert(raw_text: str) -> str:
     return tag_pii(tag_links(text))
 
 
-# ============================================================
-# Pipeline cho PhoBERT
-#
-# PhoBERT được pretrain trên văn bản đã tách từ ("trúng_thưởng"):
-# giống ViSoBERT rồi tách từ bằng pyvi, giữ nguyên token PII
-# (pyvi cắt "[MONEY]" thành "[ MONEY ]"). Giống lúc train
-# (Model_Train_Transformers_Compare.ipynb).
-# ============================================================
+# Pipeline cho PhoBERT. PhoBERT được pretrain trên văn bản đã tách từ ("trúng_thưởng"), nên xử lý
+# như ViSoBERT rồi tách từ bằng pyvi. Token PII được giữ nguyên vì pyvi cắt "[MONEY]" thành "[ MONEY ]".
+# Cách làm giống lúc train (Model_Train_Transformers_Compare.ipynb).
 
 _PII_SPLIT_PATTERN = re.compile(r"(\[(?:" + "|".join(PII_TOKENS) + r")\])")
-_segment_lock = threading.Lock()  # pyvi (CRF) không đảm bảo an toàn đa luồng; FastAPI chạy request trong threadpool
+_segment_lock = threading.Lock()  # pyvi (CRF) không an toàn khi nhiều luồng gọi cùng lúc, mà FastAPI chạy request trong threadpool
 
 
 def segment_vi(text: str) -> str:
-    from pyvi import ViTokenizer  # nạp model CRF lần đầu gọi
+    from pyvi import ViTokenizer  # model CRF chỉ được nạp ở lần gọi đầu tiên
 
     parts = _PII_SPLIT_PATTERN.split(str(text))
     with _segment_lock:

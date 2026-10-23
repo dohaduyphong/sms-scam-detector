@@ -1,10 +1,7 @@
-// ============================================================
-// Config
-// API_BASE_URL is chosen from where this page is served:
-// - Production (GitHub Pages): https://api.duyphong.info
-// - Local dev (docs/ on localhost / 127.0.0.1, e.g. `python3 -m http.server 5500`):
-//   the backend on port 8000 of the same host (`uvicorn api:app --port 8000`).
-// ============================================================
+// API_BASE_URL phụ thuộc vào nơi trang được mở:
+// - Bản chính thức (GitHub Pages): https://api.duyphong.info
+// - Chạy thử trên máy (docs/ mở qua localhost hoặc 127.0.0.1, ví dụ `python3 -m http.server 5500`):
+//   backend chạy ở cổng 8000 trên cùng máy (`uvicorn api:app --port 8000`).
 const PRODUCTION_API_BASE_URL = "https://api.duyphong.info";
 const LOCAL_API_PORT = 8000;
 const IS_LOCAL = ["localhost", "127.0.0.1"].includes(window.location.hostname);
@@ -13,8 +10,8 @@ const API_BASE_URL = IS_LOCAL
   : PRODUCTION_API_BASE_URL;
 const PREDICT_ENDPOINT = `${API_BASE_URL}/predict`;
 
-// Display-only mirror of scam_detector/config.py -- keep in sync.
-// THRESHOLD = sigmoid(ENSEMBLE_THRESHOLD); weight = phần của |coef| trong ENSEMBLE_COEF.
+// Bản sao để hiển thị của scam_detector/config.py; sửa config thì phải sửa cả ở đây.
+// THRESHOLD = sigmoid(ENSEMBLE_THRESHOLD); weight là tỷ trọng |coef| của model trong ENSEMBLE_COEF.
 const THRESHOLD = 0.635;
 const MODELS = [
   {
@@ -43,14 +40,14 @@ const MODELS = [
   },
 ];
 
-// Risk colours for a percentage: >= HIGH red, >= MID amber, else green.
-// HIGH_RISK phải lớn hơn ngưỡng (63.5%): vùng vàng = vừa qua ngưỡng, chưa chắc chắn.
+// Màu theo phần trăm: từ HIGH_RISK trở lên là đỏ, từ MID_RISK trở lên là vàng, còn lại là xanh.
+// HIGH_RISK phải lớn hơn ngưỡng (63.5%): vùng vàng là tin vừa qua ngưỡng, chưa chắc chắn.
 const HIGH_RISK = 80;
 const MID_RISK = THRESHOLD*100;
 
-// Tin mẫu cho nút "Dùng tin mẫu": trộn cả scam và hợp lệ. Số điện thoại / STK / link là giả.
+// Tin mẫu cho nút "Dùng tin mẫu", gồm cả tin scam và tin hợp lệ. Số điện thoại, số tài khoản và link đều là giả.
 const SAMPLES = [
-  // scam
+  // Tin scam
   "Ngan hang MB BANK thong bao: Tai khoan cua ban vua phat sinh giao dich 8.500.000d. Neu khong phai ban, vui long truy cap rnbbank.support.com de kiem tra va huy giao dich.",
   "Cuc CSGT: Phuong tien 51G-847.29 vi pham loi vuot den do qua camera. Nop phat 2.500.000d vao STK 1903847291 Kho Bac truoc 17h ngay mai de tranh bi tam giu phuong tien.",
   "Tong cuc Thue: Ban du dieu kien nhan lai 3.250.000d thue TNCN dong thua. Vui long xac nhan thong tin tai thue-hoantien.com trong 24h.",
@@ -64,7 +61,7 @@ const SAMPLES = [
   "CHUC MUNG! Ban da trung thuong 50 trieu VND tu chuong trinh khach hang may man. Goi ngay 0912341234 de nhan thuong.",
   "Chào anh, em bên bộ phận đối soát. Bên em thấy tài khoản của anh có một khoản hoàn tiền chưa nhận. Anh cho em xin thời gian thuận tiện để em gọi xác minh.",
 
-  // hợp lệ
+  // Tin hợp lệ
   "Ma OTP cua ban la 482913. Ma co hieu luc trong 5 phut. Tuyet doi KHONG chia se ma nay voi bat ky ai, ke ca nhan vien ngan hang.",
   "c ơi e vừa ck 2tr5 tiền hàng tháng này vào tk vietcombank của c r ạ, c check giúp e vs nha",
   "Đơn hàng #SPX928471 của bạn đang được giao. Shipper sẽ gọi trước khi đến, vui lòng giữ điện thoại.",
@@ -73,7 +70,7 @@ const SAMPLES = [
 let lastSample = -1;
 
 function randomSample() {
-  // không lặp lại tin vừa hiện
+  // Không lặp lại tin vừa hiện
   let i;
   do {
     i = Math.floor(Math.random() * SAMPLES.length);
@@ -82,7 +79,7 @@ function randomSample() {
   return SAMPLES[i];
 }
 
-// ---------- helpers ----------
+// Hàm tiện ích
 const $ = (id) => document.getElementById(id);
 const show = (node) => node.classList.remove("hidden");
 const hide = (node) => node.classList.add("hidden");
@@ -95,14 +92,14 @@ function el(tag, className, text) {
 }
 
 function colorForPercent(percent) {
-  if (percent >= HIGH_RISK) return "#f87171"; // red -- likely scam
-  if (percent >= MID_RISK) return "#fbbf24"; // amber -- uncertain
-  return "#4ade80"; // green -- likely safe
+  if (percent >= HIGH_RISK) return "#f87171"; // đỏ: nhiều khả năng là scam
+  if (percent >= MID_RISK) return "#fbbf24"; // vàng: chưa chắc chắn
+  return "#4ade80"; // xanh: nhiều khả năng an toàn
 }
 
 const pct = (x) => `${Math.round(x * 100)}%`;
 
-// ---------- elements ----------
+// Phần tử trên trang
 const messageInput = $("message-input");
 const checkBtn = $("check-btn");
 const errorBox = $("error-box");
@@ -113,7 +110,7 @@ const overallBar = $("overall-bar");
 const overallPercent = $("overall-percent");
 const overallLabel = $("overall-label");
 
-// ---------- static content ----------
+// Nội dung tĩnh
 $("meta").textContent = `MODELS ${MODELS.length} · THRESHOLD ${pct(THRESHOLD)}`;
 
 MODELS.forEach((m, i) => {
@@ -131,7 +128,7 @@ $("rules-note").textContent =
   `Điểm tổng hợp do một mô hình logistic regression (stacking) tính từ điểm chuẩn hoá của ${MODELS.length} mô hình; ` +
   `từ ${pct(THRESHOLD)} trở lên là scam.`;
 
-// ---------- events ----------
+// Sự kiện
 document.querySelectorAll(".tab").forEach((tab) => {
   tab.addEventListener("click", () => {
     document.querySelectorAll(".tab").forEach((t) => {
@@ -153,7 +150,7 @@ messageInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleCheck();
 });
 
-// ---------- main flow ----------
+// Luồng chính
 async function handleCheck() {
   const message = messageInput.value.trim();
 
@@ -187,8 +184,8 @@ async function handleCheck() {
 function renderResults(data) {
   modelResults.innerHTML = "";
 
-  // One row per "proba_*" key in the response, so a new model on the
-  // backend shows up automatically (add it to MODELS for a nice name).
+  // Mỗi khóa "proba_*" trong phản hồi là một dòng, nên model mới ở backend tự hiện ra
+  // (thêm vào MODELS nếu muốn có tên hiển thị dễ đọc).
   Object.keys(data)
     .filter((key) => key.startsWith("proba_"))
     .forEach((key) => {

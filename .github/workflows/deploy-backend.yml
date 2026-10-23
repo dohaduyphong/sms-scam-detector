@@ -4,8 +4,8 @@ on:
   push:
     branches:
       - main
-    # Only backend changes restart the API; docs/ (GitHub Pages), README.md,
-    # DEPLOY.md etc. don't. Use workflow_dispatch to deploy manually anyway.
+    # Chỉ thay đổi ở backend mới khởi động lại API; thay đổi ở docs/ (GitHub Pages), README.md,
+    # DEPLOY.md... thì không. Muốn deploy thủ công thì dùng workflow_dispatch.
     paths:
       - api.py
       - scam_detector/**
@@ -38,8 +38,8 @@ jobs:
           printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
-      # No remote command: the server's forced command for this key runs
-      # /home/api_duyphong/bin/deploy-sms-scam-detector (-> deploy/update.sh).
+      # Không truyền lệnh từ xa: forced command của khoá này trên máy chủ sẽ chạy
+      # /home/api_duyphong/bin/deploy-sms-scam-detector (script này gọi deploy/update.sh).
       - name: Trigger deployment on VPS
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
