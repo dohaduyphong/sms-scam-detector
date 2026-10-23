@@ -3,70 +3,46 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Scam SMS Detector</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <title>VN Scam Message Check</title>
+  <meta name="description" content="Dán tin nhắn để kiểm tra xem tin có dấu hiệu lừa đảo hay không." />
+  <link rel="icon" href="data:," />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header class="topbar">
-    <div class="wrap topbar-inner">
-      <div class="brand">VN SCAM SMS DETECTOR</div>
-      <div id="meta" class="meta"></div>
-    </div>
-  </header>
+  <main class="page">
+    <header class="intro">
+      <h1>Kiểm tra tin nhắn lừa đảo</h1>
+      <p>Dán nội dung tin nhắn bị nghi ngờ vào ô bên dưới. Bốn mô hình cùng đánh giá và cho biết tin có dấu hiệu lừa đảo hay không.</p>
+    </header>
 
-  <nav class="tabs">
-    <div class="wrap tabs-inner" role="tablist">
-      <button class="tab active" data-tab="check" role="tab" aria-selected="true">Kiểm tra</button>
-      <!--<button class="tab" data-tab="models" role="tab" aria-selected="false">Mô hình</button>-->
-    </div>
-  </nav>
-
-  <main class="wrap">
-    <section id="panel-check" class="panel">
-      <div class="card hero">
-        <p class="eyebrow">SCAM SMS DETECTOR</p>
-        <h1>Kiểm tra tin nhắn</h1>
-        <p class="lead">Dán nội dung SMS vào bên dưới. Hệ thống chạy 4 mô hình song song, trả về xác suất scam của từng mô hình và một điểm tổng hợp.</p>
-        <textarea id="message-input" rows="5" placeholder="Dán nội dung tin nhắn cần kiểm tra…"></textarea>
-        <div class="actions">
-          <button id="check-btn" class="btn primary" type="button">Kiểm tra tin nhắn</button>
-          <button id="sample-btn" class="btn ghost" type="button">Dùng tin mẫu</button>
-          <span class="hint">CTRL / ⌘ + ENTER</span>
-        </div>
+    <section class="check" aria-label="Nhập tin nhắn">
+      <label for="message-input" class="field-label">Nội dung tin nhắn</label>
+      <textarea id="message-input" rows="6" maxlength="2000"
+        placeholder="Dán tin nhắn vào đây…"></textarea>
+      <div class="actions">
+        <button id="check-btn" class="btn primary" type="button">Kiểm tra tin nhắn</button>
+        <button id="sample-btn" class="btn secondary" type="button">Thử với tin mẫu</button>
       </div>
-
-      <div id="error-box" class="error-box hidden" role="alert"></div>
-
-      <div id="loading" class="loading hidden">
-        <div class="spinner"></div>
-        <span>Đang phân tích…</span>
-      </div>
-
-      <div id="results" class="card results hidden">
-        <p class="eyebrow">KẾT QUẢ TỪNG MÔ HÌNH</p>
-        <div id="model-results" class="model-results"></div>
-        <div class="overall">
-          <p class="eyebrow">ĐIỂM TỔNG HỢP</p>
-          <div class="overall-head">
-            <span id="overall-percent">0%</span>
-            <span id="overall-label" class="label-badge"></span>
-          </div>
-          <div class="bar"><div id="overall-bar" class="bar-fill"></div></div>
-        </div>
-      </div>
+      <p class="hint">Ctrl + Enter (hoặc ⌘ + Enter trên Mac) để kiểm tra nhanh.</p>
     </section>
 
-    <section id="panel-models" class="panel hidden">
-      <div id="model-cards" class="cards"></div>
-      <p id="rules-note" class="card note"></p>
+    <div id="error-box" class="error-box hidden" role="alert"></div>
+
+    <section id="results" class="results hidden" aria-live="polite" aria-label="Kết quả kiểm tra">
+      <div id="verdict" class="verdict">
+        <p id="verdict-title" class="verdict-title"></p>
+        <p id="verdict-score" class="verdict-score"></p>
+        <p id="verdict-advice" class="verdict-advice"></p>
+      </div>
+
+      <h2>Điểm của từng mô hình</h2>
+      <ul id="model-results" class="model-list"></ul>
+      <p id="rules-note" class="note"></p>
     </section>
   </main>
 
-  <footer class="wrap footer">
-    Kết quả chỉ mang tính tham khảo và mô hình có thể nhầm. Nếu tin nhắn tự nhận từ ngân hàng hay nhà cung cấp dịch vụ, hãy xác minh qua kênh chính thức thay vì bấm vào link trong tin nhắn.
+  <footer class="page footer">
+    Kết quả chỉ mang tính tham khảo và mô hình có thể nhầm. Nếu tin nhắn tự nhận là từ ngân hàng hay nhà cung cấp dịch vụ, hãy xác minh qua kênh chính thức thay vì bấm vào link trong tin nhắn.
   </footer>
 
   <script src="script.js"></script>

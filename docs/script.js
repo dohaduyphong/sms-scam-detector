@@ -11,41 +11,37 @@ const API_BASE_URL = IS_LOCAL
 const PREDICT_ENDPOINT = `${API_BASE_URL}/predict`;
 
 // Bản sao để hiển thị của scam_detector/config.py; sửa config thì phải sửa cả ở đây.
-// THRESHOLD = sigmoid(ENSEMBLE_THRESHOLD); weight là tỷ trọng |coef| của model trong ENSEMBLE_COEF.
+// THRESHOLD = sigmoid(ENSEMBLE_THRESHOLD).
 const THRESHOLD = 0.635;
 const MODELS = [
   {
     key: "proba_word_tfidf_logreg",
     name: "Word TF-IDF + Logistic Regression",
-    weight: 0.54,
-    desc: "Đặc trưng theo từ và cụm 2 từ.",
+    desc: "Nhận ra từ và cụm từ hay gặp trong tin lừa đảo.",
   },
   {
     key: "proba_char_tfidf_svm",
     name: "Char TF-IDF + Linear SVM",
-    weight: 0.08,
-    desc: "N-gram ký tự 3–5, bền với lỗi chính tả và cách viết biến thể.",
+    desc: "Đọc theo từng mảnh ký tự, vẫn nhận ra khi chữ bị viết sai hoặc biến tấu.",
   },
   {
     key: "proba_visobert",
     name: "ViSoBERT",
-    weight: 0.07,
-    desc: "Mô hình ngôn ngữ pretrain trên văn bản mạng xã hội, bền với tin không dấu và teencode.",
+    desc: "Hiểu cách viết trên mạng xã hội, kể cả tin không dấu và viết tắt.",
   },
   {
     key: "proba_phobert",
     name: "PhoBERT",
-    weight: 0.31,
-    desc: "Mô hình ngôn ngữ tiếng Việt chuẩn (văn bản đã tách từ), hiểu ngữ cảnh của cả câu.",
+    desc: "Hiểu ngữ cảnh của cả câu tiếng Việt.",
   },
 ];
 
-// Màu theo phần trăm: từ HIGH_RISK trở lên là đỏ, từ MID_RISK trở lên là vàng, còn lại là xanh.
-// HIGH_RISK phải lớn hơn ngưỡng (63.5%): vùng vàng là tin vừa qua ngưỡng, chưa chắc chắn.
+// Mức theo phần trăm: từ HIGH_RISK trở lên là cao (đỏ), từ ngưỡng trở lên là vừa (vàng), còn lại là thấp (xanh).
+// HIGH_RISK phải lớn hơn ngưỡng (63.5%): mức vừa là tin vừa qua ngưỡng, chưa chắc chắn.
 const HIGH_RISK = 80;
-const MID_RISK = THRESHOLD*100;
+const MID_RISK = THRESHOLD * 100;
 
-// Tin mẫu cho nút "Dùng tin mẫu", gồm cả tin scam và tin hợp lệ. Số điện thoại, số tài khoản và link đều là giả.
+// Tin mẫu cho nút "Thử với tin mẫu", gồm cả tin scam và tin hợp lệ. Số điện thoại, số tài khoản và link đều là giả.
 const SAMPLES = [
   // Tin scam
   "Ngan hang MB BANK thong bao: Tai khoan cua ban vua phat sinh giao dich 8.500.000d. Neu khong phai ban, vui long truy cap rnbbank.support.com de kiem tra va huy giao dich.",
@@ -91,59 +87,32 @@ function el(tag, className, text) {
   return node;
 }
 
-function colorForPercent(percent) {
-  if (percent >= HIGH_RISK) return "#f87171"; // đỏ: nhiều khả năng là scam
-  if (percent >= MID_RISK) return "#fbbf24"; // vàng: chưa chắc chắn
-  return "#4ade80"; // xanh: nhiều khả năng an toàn
+function levelForPercent(percent) {
+  if (percent >= HIGH_RISK) return "high";
+  if (percent >= MID_RISK) return "mid";
+  return "low";
 }
 
 const pct = (x) => `${Math.round(x * 100)}%`;
+const pct1 = (percent) => `${percent.toLocaleString("vi-VN", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
 
 // Phần tử trên trang
 const messageInput = $("message-input");
 const checkBtn = $("check-btn");
 const errorBox = $("error-box");
-const loading = $("loading");
 const results = $("results");
+const verdict = $("verdict");
 const modelResults = $("model-results");
-const overallBar = $("overall-bar");
-const overallPercent = $("overall-percent");
-const overallLabel = $("overall-label");
-
-// Nội dung tĩnh
-$("meta").textContent = `MODELS ${MODELS.length} · THRESHOLD ${pct(THRESHOLD)}`;
-
-MODELS.forEach((m, i) => {
-  const card = el("article", "card model-card");
-  card.append(
-    el("p", "num", String(i + 1).padStart(2, "0")),
-    el("h3", "", m.name),
-    el("p", "desc", m.desc),
-    el("p", "weight", `TRỌNG SỐ ${pct(m.weight)}`)
-  );
-  $("model-cards").appendChild(card);
-});
 
 $("rules-note").textContent =
-  `Điểm tổng hợp do một mô hình logistic regression (stacking) tính từ điểm chuẩn hoá của ${MODELS.length} mô hình; ` +
-  `từ ${pct(THRESHOLD)} trở lên là scam.`;
+  `Kết luận cuối cùng do một mô hình kết hợp điểm của cả ${MODELS.length} mô hình trên; ` +
+  `từ ${pct(THRESHOLD)} trở lên được coi là có dấu hiệu lừa đảo.`;
 
 // Sự kiện
-document.querySelectorAll(".tab").forEach((tab) => {
-  tab.addEventListener("click", () => {
-    document.querySelectorAll(".tab").forEach((t) => {
-      t.classList.toggle("active", t === tab);
-      t.setAttribute("aria-selected", String(t === tab));
-    });
-    document.querySelectorAll(".panel").forEach((p) => {
-      p.classList.toggle("hidden", p.id !== `panel-${tab.dataset.tab}`);
-    });
-  });
-});
-
 checkBtn.addEventListener("click", handleCheck);
 $("sample-btn").addEventListener("click", () => {
   messageInput.value = randomSample();
+  hide(errorBox);
   messageInput.focus();
 });
 messageInput.addEventListener("keydown", (e) => {
@@ -158,81 +127,84 @@ async function handleCheck() {
   hide(results);
 
   if (!message) {
-    showError("Vui lòng nhập nội dung tin nhắn.");
+    showError("Hãy dán nội dung tin nhắn vào ô trên trước khi kiểm tra.");
+    messageInput.focus();
     return;
   }
 
   setLoading(true);
   try {
-    const response = await fetch(PREDICT_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message }),
-    });
-    if (!response.ok) throw new Error(`Server trả về lỗi ${response.status}`);
+    let response;
+    try {
+      response = await fetch(PREDICT_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message }),
+      });
+    } catch {
+      showError("Không kết nối được tới máy chủ kiểm tra. Hãy kiểm tra mạng rồi thử lại sau ít phút.");
+      return;
+    }
+    if (!response.ok) {
+      showError(`Máy chủ kiểm tra đang gặp lỗi (mã ${response.status}). Hãy thử lại sau ít phút.`);
+      return;
+    }
     renderResults(await response.json());
-  } catch (err) {
-    showError(
-      `Không thể kết nối tới backend (${err.message}). ` +
-        `Kiểm tra API_BASE_URL trong script.js và đảm bảo server đang chạy.`
-    );
   } finally {
     setLoading(false);
   }
 }
 
 function renderResults(data) {
-  modelResults.innerHTML = "";
+  const overall = data.confidence_scam * 100;
+  const level = data.label === "scam" ? levelForPercent(overall) : "low";
+
+  verdict.className = `verdict ${level}`;
+  $("verdict-title").textContent = {
+    high: "Nhiều khả năng là tin lừa đảo",
+    mid: "Có dấu hiệu lừa đảo",
+    low: "Chưa thấy dấu hiệu lừa đảo",
+  }[level];
+  $("verdict-score").textContent = `Mức nghi ngờ: ${pct1(overall)}`;
+  $("verdict-advice").textContent =
+    level === "low"
+      ? "Kết quả chỉ để tham khảo. Nếu tin yêu cầu chuyển tiền hoặc cung cấp mã OTP, hãy xác minh lại với người gửi qua kênh khác."
+      : "Đừng bấm vào link, gọi vào số trong tin, chuyển tiền hay cung cấp mã OTP. Hãy xác minh qua kênh chính thức của tổ chức được nhắc tới.";
 
   // Mỗi khóa "proba_*" trong phản hồi là một dòng, nên model mới ở backend tự hiện ra
-  // (thêm vào MODELS nếu muốn có tên hiển thị dễ đọc).
+  // (thêm vào MODELS nếu muốn có tên và mô tả dễ đọc).
+  modelResults.innerHTML = "";
   Object.keys(data)
     .filter((key) => key.startsWith("proba_"))
     .forEach((key) => {
       const model = MODELS.find((m) => m.key === key);
-      modelResults.appendChild(
-        buildRow(model ? model.name : key, data[key] * 100, model ? model.weight : undefined)
-      );
+      modelResults.appendChild(buildRow(model ? model.name : key, model ? model.desc : "", data[key] * 100));
     });
 
-  const overall = data.confidence_scam * 100;
-  overallBar.style.width = `${overall}%`;
-  overallBar.style.background = colorForPercent(overall);
-  overallPercent.textContent = `${overall.toFixed(1)}%`;
-  overallPercent.style.color = colorForPercent(overall);
-
-  const isScam = data.label === "scam";
-  overallLabel.textContent = isScam ? "Nghi ngờ scam" : "An toàn";
-  overallLabel.className = `label-badge ${isScam ? "scam" : "ham"}`;
-
   show(results);
+  results.scrollIntoView({ block: "start" });
 }
 
-function buildRow(label, percent, weight) {
-  const row = el("div", "model-row");
+function buildRow(label, desc, percent) {
+  const level = levelForPercent(percent);
+  const row = el("li", "model-row");
+
   const top = el("div", "row-top");
-
-  const name = el("span", "row-name", label);
-  if (typeof weight === "number") name.appendChild(el("span", "tag", `${pct(weight)} trọng số`));
-
-  const value = el("span", "row-value", `${percent.toFixed(1)}%`);
-  value.style.color = colorForPercent(percent);
-  top.append(name, value);
+  top.append(el("span", "row-name", label), el("span", `row-value ${level}`, pct1(percent)));
+  row.appendChild(top);
+  if (desc) row.appendChild(el("p", "row-desc", desc));
 
   const bar = el("div", "bar");
-  const fill = el("div", "bar-fill");
+  const fill = el("div", `bar-fill ${level}`);
   fill.style.width = `${percent}%`;
-  fill.style.background = colorForPercent(percent);
   bar.appendChild(fill);
-
-  row.append(top, bar);
+  row.appendChild(bar);
   return row;
 }
 
 function setLoading(isLoading) {
   checkBtn.disabled = isLoading;
-  if (isLoading) show(loading);
-  else hide(loading);
+  checkBtn.textContent = isLoading ? "Đang kiểm tra…" : "Kiểm tra tin nhắn";
 }
 
 function showError(msg) {
