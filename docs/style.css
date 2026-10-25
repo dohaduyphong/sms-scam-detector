@@ -105,6 +105,9 @@ textarea:focus-visible,
 /* Kết quả */
 .results { margin-top: 36px; }
 
+/* Chỉ hiện ở bố cục hai cột, để cột phải không trống trơn trước lần kiểm tra đầu tiên. */
+.result-empty { display: none; }
+
 /* Viền trái mang màu của kết quả, để nhìn là biết mức nghi ngờ. */
 .verdict {
   padding: 18px 20px;
@@ -144,13 +147,28 @@ textarea:focus-visible,
 
 .note { margin: 14px 0 0; color: var(--muted); font-size: 0.9rem; }
 
-.footer {
-  margin-top: 48px;
-  padding-top: 20px;
-  padding-bottom: 48px;
-  border-top: 1px solid var(--border);
-  color: var(--muted);
-  font-size: 0.9rem;
+.footer { margin-top: 48px; padding-bottom: 48px; color: var(--muted); font-size: 0.9rem; }
+.footer p { margin: 0; padding-top: 20px; border-top: 1px solid var(--border); }
+
+/* Desktop: ô nhập bên trái, kết quả bên phải. Cột trái được ghim để vẫn thấy ô nhập khi cuộn kết quả. */
+@media (min-width: 960px) {
+  .page { max-width: 1120px; padding: 0 32px; }
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 56px;
+    align-items: start;
+  }
+  .col-input { position: sticky; top: 32px; }
+  .results { margin-top: 0; }
+  .result-empty {
+    display: block;
+    margin: 0;
+    padding: 28px 24px;
+    border: 1px dashed var(--input-border);
+    border-radius: var(--radius);
+    color: var(--muted);
+  }
 }
 
 @media (max-width: 480px) {

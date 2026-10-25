@@ -41,7 +41,7 @@ const MODELS = [
 const HIGH_RISK = 80;
 const MID_RISK = THRESHOLD * 100;
 
-// Tin mẫu cho nút "Thử với tin mẫu", gồm cả tin scam và tin hợp lệ. Số điện thoại, số tài khoản và link đều là giả.
+// Tin mẫu cho nút "Thử với tin mẫu".
 const SAMPLES = [
   // Tin scam
   "Ngan hang MB BANK thong bao: Tai khoan cua ban vua phat sinh giao dich 8.500.000d. Neu khong phai ban, vui long truy cap rnbbank.support.com de kiem tra va huy giao dich.",
@@ -56,12 +56,25 @@ const SAMPLES = [
   "Ban oi minh la nv cham soc kh cua dien luc, thang nay nha ban dc ho tro giam 50% tien dien nhung phai dong phi kich hoat 150k trc. Ck vao stk 0912312312 ten Tran Thi Hoai roi gui bien lai cho minh nhe, muon thi lam nhanh ko het slot",
   "CHUC MUNG! Ban da trung thuong 50 trieu VND tu chuong trinh khach hang may man. Goi ngay 0912341234 de nhan thuong.",
   "Chào anh, em bên bộ phận đối soát. Bên em thấy tài khoản của anh có một khoản hoàn tiền chưa nhận. Anh cho em xin thời gian thuận tiện để em gọi xác minh.",
+  "[VNeID] Tai khoan dinh danh muc 2 cua ban sap bi khoa do chua cap nhat. Tai ung dung theo duong dan vneid-capnhat.com va lam theo huong dan de tranh gian doan.",
+  "Nha mang thong bao: thue bao cua quy khach chua chuan hoa thong tin, se bi khoa 2 chieu sau 24h. Soan tin theo huong dan cua tong dai vien qua so 0123.888.999 de duoc giu so.",
+  "Chào anh/chị, em là trợ lý của chuyên gia chứng khoán. Nhóm đang tặng mã cổ phiếu sắp tăng mạnh, cam kết lãi 30%/tháng. Anh/chị tham gia nhóm Telegram tại t.me/dautu-vip-xyz nhé.",
+  "Chi oi em la co giao chu nhiem cua be, be bi nga o truong dang cap cuu, can chuyen gap 15tr vao stk 0123456780 de benh vien lam thu thuat, chi chuyen ngay giup em",
+  "a ơi tháng này a ck tiền nhà vào stk mới của e nhé, stk cũ e đang bị khoá. 0123456781 ngân hàng ACB tên Nguyen Van B, a ck xong chụp bill gửi e",
 
   // Tin hợp lệ
   "Ma OTP cua ban la 482913. Ma co hieu luc trong 5 phut. Tuyet doi KHONG chia se ma nay voi bat ky ai, ke ca nhan vien ngan hang.",
   "c ơi e vừa ck 2tr5 tiền hàng tháng này vào tk vietcombank của c r ạ, c check giúp e vs nha",
   "Đơn hàng #SPX928471 của bạn đang được giao. Shipper sẽ gọi trước khi đến, vui lòng giữ điện thoại.",
   "Mẹ ơi con về muộn chút, đừng chờ cơm con nha. Con ghé siêu thị mua ít đồ rồi về luôn.",
+  "TK 0123xxx789 +3,500,000VND luc 08:15 23/10. So du 12,450,000VND. ND: LUONG THANG 10",
+  "Kính gửi phụ huynh lớp 10A3, nhà trường tổ chức họp phụ huynh lúc 8h sáng Chủ nhật tuần này tại phòng 203. Mong quý phụ huynh sắp xếp thời gian tham dự.",
+  "ê m ck t tiền ăn hôm qua chưa, 85k nha, ck vào stk t như cũ là đc",
+  "Phong kham nhac lich: Quy khach co lich kham luc 9h30 ngay 25/10. Vui long den truoc 15 phut va mang theo CCCD. Huy lich vui long goi tong dai phong kham.",
+  "Nha mang tang ban uu dai: dang ky goi data 7 ngay chi 35.000d, soan DK gui 191 de dang ky. Tu choi nhan tin nhan quang cao soan TC gui 1543.",
+  "Chiều nay 3h họp nhóm ở phòng họp tầng 5 nhé mọi người, nhớ mang laptop để demo phần của mình.",
+  "Con ơi cuối tuần này con có về không, mẹ nấu canh chua cá. Về thì nhắn mẹ để mẹ đi chợ sớm.",
+  "Don hang cua ban da duoc giao thanh cong. Cam on ban da mua sam, vui long danh gia san pham trong ung dung neu hai long.",
 ];
 let lastSample = -1;
 
@@ -101,6 +114,7 @@ const messageInput = $("message-input");
 const checkBtn = $("check-btn");
 const errorBox = $("error-box");
 const results = $("results");
+const resultEmpty = $("result-empty");
 const verdict = $("verdict");
 const modelResults = $("model-results");
 
@@ -125,6 +139,7 @@ async function handleCheck() {
 
   hide(errorBox);
   hide(results);
+  show(resultEmpty);
 
   if (!message) {
     showError("Hãy dán nội dung tin nhắn vào ô trên trước khi kiểm tra.");
@@ -181,8 +196,10 @@ function renderResults(data) {
       modelResults.appendChild(buildRow(model ? model.name : key, model ? model.desc : "", data[key] * 100));
     });
 
+  hide(resultEmpty);
   show(results);
-  results.scrollIntoView({ block: "start" });
+  // Chỉ cuộn khi trang một cột; ở bố cục hai cột kết quả đã nằm ngay bên phải.
+  if (window.matchMedia("(max-width: 959px)").matches) results.scrollIntoView({ block: "start" });
 }
 
 function buildRow(label, desc, percent) {

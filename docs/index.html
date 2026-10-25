@@ -6,10 +6,11 @@
   <title>VN Scam Message Check</title>
   <meta name="description" content="Dán tin nhắn để kiểm tra xem tin có dấu hiệu lừa đảo hay không." />
   <link rel="icon" href="data:," />
-  <link rel="stylesheet" href="style.css?v=2026-10-23" />
+  <link rel="stylesheet" href="style.css?v=2026-10-25" />
 </head>
 <body>
-  <main class="page">
+  <main class="page layout">
+    <div class="col-input">
     <header class="intro">
       <h1>Kiểm tra tin nhắn lừa đảo</h1>
       <p>Dán nội dung tin nhắn bị nghi ngờ vào ô bên dưới. Bốn mô hình cùng đánh giá và cho biết tin có dấu hiệu lừa đảo hay không.</p>
@@ -27,6 +28,10 @@
     </section>
 
     <div id="error-box" class="error-box hidden" role="alert"></div>
+    </div>
+
+    <div class="col-result">
+    <p id="result-empty" class="result-empty">Kết quả sẽ hiện ở đây sau khi bạn bấm “Kiểm tra tin nhắn”.</p>
 
     <section id="results" class="results hidden" aria-live="polite" aria-label="Kết quả kiểm tra">
       <div id="verdict" class="verdict">
@@ -39,12 +44,13 @@
       <ul id="model-results" class="model-list"></ul>
       <p id="rules-note" class="note"></p>
     </section>
+    </div>
   </main>
 
   <footer class="page footer">
-    Kết quả chỉ mang tính tham khảo và mô hình có thể nhầm. Nếu tin nhắn tự nhận là từ ngân hàng hay nhà cung cấp dịch vụ, hãy xác minh qua kênh chính thức thay vì bấm vào link trong tin nhắn.
+    <p>Kết quả chỉ mang tính tham khảo và mô hình có thể nhầm. Nếu tin nhắn tự nhận là từ ngân hàng hay nhà cung cấp dịch vụ, hãy xác minh qua kênh chính thức thay vì bấm vào link trong tin nhắn.</p>
   </footer>
 
-  <script src="script.js?v=2026-10-23"></script>
+  <script src="script.js?v=2026-10-25"></script>
 </body>
 </html>

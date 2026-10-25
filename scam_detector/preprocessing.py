@@ -165,8 +165,7 @@ _NAME_STOPWORDS = {
     "goi", "tin", "xu", "cuoc", "thong", "bao", "canh", "cuoi", "hoi", "nhap",
     "truy", "tra", "mua", "ban", "giam", "gia", "qua", "trung", "thuong",
 }
-# Từ xưng hô đứng đầu thì không phải tên ("Anh Em Oi"), nhưng đứng giữa hoặc cuối thì có thể là tên
-# ("Phạm Đức Anh"). Riêng "chi" luôn dừng chuỗi tên (Hồ Chí Minh, Anh Chi Oi).
+
 _NAME_START_STOPWORDS = {"anh", "em", "ong", "ba", "ban"}
 # Âm tiết tiếng Việt không dấu gồm phụ âm đầu, 1-3 nguyên âm và phụ âm cuối.
 # Mẫu này loại được tên thương hiệu, từ tiếng Anh và chữ viết tắt: Zalo, Viettel, Shopee, CSKH, GS25...
