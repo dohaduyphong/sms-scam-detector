@@ -176,7 +176,7 @@ function renderResults(data) {
 
   verdict.className = `verdict ${level}`;
   $("verdict-title").textContent = {
-    high: "Nhiều khả năng là tin lừa đảo",
+    high: "Khả năng cao là tin lừa đảo",
     mid: "Có dấu hiệu lừa đảo",
     low: "Chưa thấy dấu hiệu lừa đảo",
   }[level];
@@ -184,7 +184,7 @@ function renderResults(data) {
   $("verdict-advice").textContent =
     level === "low"
       ? "Kết quả chỉ để tham khảo. Nếu tin yêu cầu chuyển tiền hoặc cung cấp mã OTP, hãy xác minh lại với người gửi qua kênh khác."
-      : "Đừng bấm vào link, gọi vào số trong tin, chuyển tiền hay cung cấp mã OTP. Hãy xác minh qua kênh chính thức của tổ chức được nhắc tới.";
+      : "Không bấm vào link, gọi vào số trong tin, chuyển tiền hay cung cấp mã OTP. Hãy xác minh qua các nguồn chính thức trước.";
 
   // Mỗi khóa "proba_*" trong phản hồi là một dòng, nên model mới ở backend tự hiện ra
   // (thêm vào MODELS nếu muốn có tên và mô tả dễ đọc).
@@ -209,7 +209,7 @@ function buildRow(label, desc, percent) {
   const top = el("div", "row-top");
   top.append(el("span", "row-name", label), el("span", `row-value ${level}`, pct1(percent)));
   row.appendChild(top);
-  if (desc) row.appendChild(el("p", "row-desc", desc));
+  //if (desc) row.appendChild(el("p", "row-desc", desc));
 
   const bar = el("div", "bar");
   const fill = el("div", `bar-fill ${level}`);
